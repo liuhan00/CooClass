@@ -63,6 +63,8 @@
               <view class="mini-chick-mouth"></view>
               <view class="mini-chick-brow mini-chick-brow--left"></view>
               <view class="mini-chick-brow mini-chick-brow--right"></view>
+              <view class="mini-chick-cheek mini-chick-cheek--left" v-if="chick.expression === 'love'"></view>
+              <view class="mini-chick-cheek mini-chick-cheek--right" v-if="chick.expression === 'love'"></view>
             </view>
           </view>
         </view>
@@ -77,7 +79,7 @@ import Matter from 'matter-js'
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
 const FRAME_INTERVAL = 1000 / 60
-const CHICK_RADIUS = 54
+const CHICK_RADIUS = 35
 
 const requestFrame =
   typeof globalThis !== 'undefined' && typeof globalThis.requestAnimationFrame === 'function'
@@ -89,7 +91,7 @@ const cancelFrame =
     ? globalThis.cancelAnimationFrame.bind(globalThis)
     : (timer) => clearTimeout(timer)
 
-const CHICK_EXPRESSIONS = ['calm', 'focus', 'wink', 'laugh', 'side-eye', 'smile', 'blink', 'cheer']
+const CHICK_EXPRESSIONS = ['calm', 'focus', 'wink', 'laugh', 'side-eye', 'smile', 'blink', 'cheer', 'sleepy', 'surprised', 'love', 'angry', 'cool']
 
 export default {
   data() {
@@ -307,7 +309,7 @@ export default {
       }
     },
     handlePlaygroundTouchStart(event) {
-      if (!this.dragConstraint || !this.chickBodies.length) return
+      if (!this.chickBodies.length) return
       const touch = event.touches && event.touches[0]
       const point = this.getTouchPoint(touch)
       if (!point) return
@@ -316,8 +318,6 @@ export default {
       const body = hits[0]
       body.isDragging = true
       this.activeChickId = body.__id
-      this.dragConstraint.bodyB = body
-      this.dragConstraint.pointA = point
       this.dragSnapshot = {
         lastPoint: point,
         lastTime: Date.now(),
@@ -325,10 +325,18 @@ export default {
       }
     },
     handlePlaygroundTouchMove(event) {
-      if (!this.dragConstraint || !this.dragConstraint.bodyB || !this.dragSnapshot) return
+      if (!this.activeChickId || !this.dragSnapshot) return
       const touch = event.touches && event.touches[0]
       const point = this.getTouchPoint(touch)
       if (!point) return
+      
+      // 查找正在拖拽的小鸡
+      const body = this.chickBodies.find(b => b.__id === this.activeChickId)
+      if (!body) return
+      
+      // 直接设置小鸡的位置
+      Body.setPosition(body, point)
+      
       const now = Date.now()
       const dt = Math.max(now - this.dragSnapshot.lastTime, 16)
       this.dragSnapshot.velocity = {
@@ -337,19 +345,20 @@ export default {
       }
       this.dragSnapshot.lastPoint = point
       this.dragSnapshot.lastTime = now
-      this.dragConstraint.pointA = point
     },
     handlePlaygroundTouchEnd() {
-      if (this.dragConstraint && this.dragConstraint.bodyB) {
-        const body = this.dragConstraint.bodyB
-        body.isDragging = false
-        if (this.dragSnapshot && this.dragSnapshot.velocity) {
-          Body.setVelocity(body, {
-            x: this.dragSnapshot.velocity.x * 30,
-            y: this.dragSnapshot.velocity.y * 30,
-          })
+      if (this.activeChickId) {
+        // 查找正在拖拽的小鸡
+        const body = this.chickBodies.find(b => b.__id === this.activeChickId)
+        if (body) {
+          body.isDragging = false
+          if (this.dragSnapshot && this.dragSnapshot.velocity) {
+            Body.setVelocity(body, {
+              x: this.dragSnapshot.velocity.x * 30,
+              y: this.dragSnapshot.velocity.y * 30,
+            })
+          }
         }
-        this.dragConstraint.bodyB = null
       }
       this.resetDragState()
     },
@@ -629,8 +638,8 @@ button::after {
 }
 
 .mini-chick {
-  width: 86rpx;
-  height: 86rpx;
+  width: 60rpx;
+  height: 60rpx;
   border-radius: 50%;
   background: #050505;
   position: relative;
@@ -660,42 +669,42 @@ button::after {
 
 .mini-chick-eye {
   position: absolute;
-  width: 26rpx;
-  height: 26rpx;
+  width: 16rpx;
+  height: 16rpx;
   border-radius: 50%;
   background: #ffffff;
-  top: 28rpx;
+  top: 18rpx;
 }
 
 .mini-chick-eye::after {
   content: '';
   position: absolute;
-  width: 12rpx;
-  height: 12rpx;
+  width: 8rpx;
+  height: 8rpx;
   border-radius: 50%;
   background: #000000;
-  top: 6rpx;
-  left: 6rpx;
+  top: 4rpx;
+  left: 4rpx;
 }
 
 .mini-chick-eye--left {
-  left: 26rpx;
+  left: 16rpx;
 }
 
 .mini-chick-eye--right {
-  right: 26rpx;
+  right: 16rpx;
 }
 
 .mini-chick-beak {
   position: absolute;
-  width: 28rpx;
-  height: 18rpx;
+  width: 18rpx;
+  height: 12rpx;
   background: #ffba4b;
   border-radius: 50% 50% 60% 60%;
-  bottom: 26rpx;
+  bottom: 16rpx;
   left: 50%;
   transform: translateX(-50%);
-  box-shadow: inset 0 -2rpx 0 rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 -1rpx 0 rgba(0, 0, 0, 0.15);
 }
 
 .mini-chick-mouth {
@@ -712,25 +721,25 @@ button::after {
 
 .mini-chick-brow {
   position: absolute;
-  width: 20rpx;
-  height: 4rpx;
+  width: 12rpx;
+  height: 2rpx;
   background: #ffffff;
-  top: 20rpx;
+  top: 12rpx;
   opacity: 0;
 }
 
 .mini-chick-brow--left {
-  left: 28rpx;
+  left: 16rpx;
 }
 
 .mini-chick-brow--right {
-  right: 28rpx;
+  right: 16rpx;
 }
 
 .mini-chick--playground {
-  width: 108rpx;
-  height: 108rpx;
-  box-shadow: 0 18rpx 30rpx rgba(0, 0, 0, 0.2);
+  width: 70rpx;
+  height: 70rpx;
+  box-shadow: 0 12rpx 20rpx rgba(0, 0, 0, 0.2);
 }
 
 .mini-chick--wink .mini-chick-eye--right {
@@ -794,6 +803,123 @@ button::after {
 
 .mini-chick--smile .mini-chick-mouth {
   opacity: 1;
+}
+
+/* 新增表情样式 */
+.mini-chick--sleepy .mini-chick-eye {
+  height: 8rpx;
+  top: 38rpx;
+  background: #ffffff;
+  border-radius: 999rpx;
+}
+
+.mini-chick--sleepy .mini-chick-eye::after {
+  width: 0;
+  height: 0;
+}
+
+.mini-chick--sleepy .mini-chick-mouth {
+  opacity: 0.6;
+  height: 10rpx;
+  width: 20rpx;
+  bottom: 20rpx;
+  border-radius: 0;
+}
+
+.mini-chick--surprised .mini-chick-eye {
+  width: 30rpx;
+  height: 30rpx;
+  top: 24rpx;
+}
+
+.mini-chick--surprised .mini-chick-eye::after {
+  width: 16rpx;
+  height: 16rpx;
+  top: 7rpx;
+  left: 7rpx;
+}
+
+.mini-chick--surprised .mini-chick-mouth {
+  opacity: 1;
+  height: 20rpx;
+  width: 20rpx;
+  bottom: 16rpx;
+  border-radius: 50%;
+  background: #ffba4b;
+}
+
+.mini-chick--love .mini-chick-eye {
+  background: #ff6b9d;
+}
+
+.mini-chick--love .mini-chick-eye::after {
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: transparent;
+  border: 6rpx solid #ffffff;
+  top: 6rpx;
+  left: 6rpx;
+}
+
+.mini-chick--love .mini-chick-cheek {
+  position: absolute;
+  width: 20rpx;
+  height: 20rpx;
+  background: #ff6b9d;
+  border-radius: 50%;
+  top: 36rpx;
+  opacity: 0.8;
+}
+
+.mini-chick--love .mini-chick-cheek--left {
+  left: 8rpx;
+}
+
+.mini-chick--love .mini-chick-cheek--right {
+  right: 8rpx;
+}
+
+.mini-chick--angry .mini-chick-brow {
+  opacity: 1;
+  background: #ff0000;
+  height: 6rpx;
+}
+
+.mini-chick--angry .mini-chick-brow--left {
+  left: 24rpx;
+  transform: rotate(20deg);
+}
+
+.mini-chick--angry .mini-chick-brow--right {
+  right: 24rpx;
+  transform: rotate(-20deg);
+}
+
+.mini-chick--angry .mini-chick-mouth {
+  opacity: 1;
+  height: 12rpx;
+  width: 24rpx;
+  bottom: 18rpx;
+  border-radius: 0 0 999rpx 999rpx;
+  background: #ff0000;
+}
+
+.mini-chick--cool::before {
+  content: '';
+  position: absolute;
+  width: 60rpx;
+  height: 20rpx;
+  background: #000000;
+  top: 24rpx;
+  left: 18rpx;
+  border-radius: 10rpx;
+  opacity: 0.8;
+  z-index: 1;
+}
+
+.mini-chick--cool .mini-chick-eye {
+  opacity: 0.8;
 }
 
 .playful-chick {

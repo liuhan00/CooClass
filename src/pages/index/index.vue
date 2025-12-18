@@ -63,30 +63,13 @@
 
     <view
       class="playground"
-      @touchstart.stop.prevent="handlePlaygroundTouchStart"
-      @touchmove.stop.prevent="handlePlaygroundTouchMove"
-      @touchend.stop.prevent="handlePlaygroundTouchEnd"
-      @touchcancel.stop.prevent="handlePlaygroundTouchEnd"
+      @touchstart="handlePlaygroundTouchStart"
+      @touchmove="handlePlaygroundTouchMove"
+      @touchend="handlePlaygroundTouchEnd"
+      @touchcancel="handlePlaygroundTouchEnd"
     >
       <view class="chick-playground">
         <view class="playground-floor"></view>
-        <scroll-view class="chick-row" scroll-x enable-flex>
-          <view
-            v-for="stripChick in chickStrip"
-            :key="stripChick.id"
-            class="mini-chick"
-            :class="`mini-chick--${stripChick.expression}`"
-          >
-            <view class="mini-chick-face">
-              <view class="mini-chick-eye mini-chick-eye--left"></view>
-              <view class="mini-chick-eye mini-chick-eye--right"></view>
-              <view class="mini-chick-beak"></view>
-              <view class="mini-chick-mouth"></view>
-              <view class="mini-chick-brow mini-chick-brow--left"></view>
-              <view class="mini-chick-brow mini-chick-brow--right"></view>
-            </view>
-          </view>
-        </scroll-view>
         <view
           v-for="chick in chicks"
           :key="chick.id"
@@ -105,6 +88,26 @@
             </view>
           </view>
         </view>
+      </view>
+    </view>
+    
+    <!-- 底部导航栏 -->
+    <view class="tab-bar">
+      <view class="tab-item tab-item--active" @tap="switchTab('home')">
+        <image class="tab-icon" src="/static/chiken.png"></image>
+        <text class="tab-text">首页</text>
+      </view>
+      <view class="tab-item" @tap="switchTab('statistics')">
+        <image class="tab-icon" src="/static/statistics.png"></image>
+        <text class="tab-text">统计</text>
+      </view>
+      <view class="tab-item" @tap="switchTab('timeline')">
+        <image class="tab-icon" src="/static/times.png"></image>
+        <text class="tab-text">时光</text>
+      </view>
+      <view class="tab-item" @tap="switchTab('profile')">
+        <image class="tab-icon" src="/static/mine.png"></image>
+        <text class="tab-text">我的</text>
       </view>
     </view>
   </view>
@@ -137,7 +140,6 @@ export default {
       focusScene: '阅读',
       focusDuration: '75:00',
       chicks: [],
-      chickStrip: [],
       activeChickId: null,
       dragSnapshot: null,
       gravityVector: { x: 0, y: 1 },
@@ -151,11 +153,11 @@ export default {
       frameId: null,
       hasEntered: false,
       accelerometerHandler: null,
+      currentTab: 'home', // 当前选中的tab
     }
   },
   onLoad() {
     this.cacheDeviceRatio()
-    this.createStripFaces()
   },
   onReady() {
     this.measurePlayground(() => {
@@ -190,29 +192,48 @@ export default {
     },
     measurePlayground(done) {
       this.$nextTick(() => {
-        if (!uni.createSelectorQuery) {
-          if (typeof done === 'function') {
-            done()
+        // 获取整个屏幕的尺寸作为拖动区域
+        try {
+          const info = uni.getSystemInfoSync()
+          this.playgroundRect = {
+            left: 0,
+            top: 0,
+            width: info.windowWidth,
+            height: info.windowHeight
           }
-          return
-        }
-        uni
-          .createSelectorQuery()
-          .in(this)
-          .select('.chick-playground')
-          .boundingClientRect((rect) => {
-            if (rect && rect.width && rect.height) {
-              this.playgroundRect = rect
-              this.playgroundWidth = rect.width * this.rpxRatio
-              this.playgroundHeight = rect.height * this.rpxRatio
-            } else {
-              console.warn('未能获取操场尺寸，将沿用默认值')
-            }
+          this.playgroundWidth = info.windowWidth * this.rpxRatio
+          this.playgroundHeight = info.windowHeight * this.rpxRatio
+        } catch (error) {
+          console.warn('获取屏幕信息失败，将使用默认值', error)
+          // 如果获取失败，仍然使用原来的操场尺寸
+          if (!uni.createSelectorQuery) {
             if (typeof done === 'function') {
               done()
             }
-          })
-          .exec()
+            return
+          }
+          uni
+            .createSelectorQuery()
+            .in(this)
+            .select('.chick-playground')
+            .boundingClientRect((rect) => {
+              if (rect && rect.width && rect.height) {
+                this.playgroundRect = rect
+                this.playgroundWidth = rect.width * this.rpxRatio
+                this.playgroundHeight = rect.height * this.rpxRatio
+              } else {
+                console.warn('未能获取操场尺寸，将沿用默认值')
+              }
+              if (typeof done === 'function') {
+                done()
+              }
+            })
+            .exec()
+        }
+        
+        if (typeof done === 'function') {
+          done()
+        }
       })
     },
     initChicks() {
@@ -220,7 +241,7 @@ export default {
       this.engine = Engine.create()
       this.engine.world.gravity.x = this.gravityVector.x
       this.engine.world.gravity.y = this.gravityVector.y
-      this.engine.world.gravity.scale = 0.0018
+      this.engine.world.gravity.scale = 0.003  // 增加重力，让小鸡下落更快
       this.chickBodies = this.createChickBodies()
       const bounds = this.createWorldBounds()
       this.dragConstraint = Constraint.create({
@@ -236,19 +257,19 @@ export default {
     },
     createChickBodies() {
       const count = CHICK_EXPRESSIONS.length
-      const usableWidth = Math.max(this.playgroundWidth - CHICK_RADIUS * 2, CHICK_RADIUS * 2)
-      const spacing = count > 1 ? usableWidth / (count - 1) : 0
-      const startY = this.playgroundHeight - CHICK_RADIUS - 40
+      // 在屏幕可见区域底部附近分布小鸡
+      const startY = this.playgroundHeight * 0.5  // 从屏幕50%高度开始
+      const visibleHeight = this.playgroundHeight * 0.4  // 在40%的垂直范围内分布
       return CHICK_EXPRESSIONS.map((expression, index) => {
         const body = Bodies.circle(
-          CHICK_RADIUS + index * spacing,
-          startY + Math.random() * 30,
+          Math.random() * (this.playgroundWidth - CHICK_RADIUS * 4) + CHICK_RADIUS * 2,
+          Math.random() * (visibleHeight - CHICK_RADIUS * 4) + startY,
           CHICK_RADIUS,
           {
             restitution: 0.45,
             friction: 0.08,
-            frictionAir: 0.012,
-            density: 0.0016,
+            frictionAir: 0.005,  // 减少空气阻力
+            density: 0.0025,     // 增加密度
             slop: 0.2,
           }
         )
@@ -259,7 +280,7 @@ export default {
     },
     createWorldBounds() {
       const width = this.playgroundWidth
-      const height = this.playgroundHeight
+      const height = this.playgroundHeight * 0.9  // 设置物理边界在屏幕90%高度处，更靠近底部
       const floor = Bodies.rectangle(width / 2, height + 40, width, 80, {
         isStatic: true,
         restitution: 0.2,
@@ -267,7 +288,8 @@ export default {
       })
       const leftWall = Bodies.rectangle(-40, height / 2, 80, height * 2, { isStatic: true })
       const rightWall = Bodies.rectangle(width + 40, height / 2, 80, height * 2, { isStatic: true })
-      return [floor, leftWall, rightWall]
+      const topWall = Bodies.rectangle(width / 2, -40, width, 80, { isStatic: true })
+      return [floor, leftWall, rightWall, topWall]
     },
     syncChicksFromBodies() {
       if (!this.chickBodies.length) return
@@ -320,29 +342,45 @@ export default {
         y: this.clamp(relativeY, 0, this.playgroundHeight),
       }
     },
+    // 全局触摸开始事件
     handlePlaygroundTouchStart(event) {
-      if (!this.dragConstraint || !this.chickBodies.length) return
+      if (!this.chickBodies.length) return
       const touch = event.touches && event.touches[0]
       const point = this.getTouchPoint(touch)
       if (!point) return
+      
+      // 检查是否点击到了小鸡
       const hits = Query.point(this.chickBodies, point)
       if (!hits.length) return
+      
       const body = hits[0]
       body.isDragging = true
       this.activeChickId = body.__id
-      this.dragConstraint.bodyB = body
-      this.dragConstraint.pointA = point
       this.dragSnapshot = {
         lastPoint: point,
         lastTime: Date.now(),
         velocity: { x: 0, y: 0 },
       }
+      
+      // 阻止默认行为和冒泡
+      event.preventDefault()
+      event.stopPropagation()
     },
+    
+    // 全局触摸移动事件
     handlePlaygroundTouchMove(event) {
-      if (!this.dragConstraint || !this.dragConstraint.bodyB || !this.dragSnapshot) return
+      if (!this.activeChickId || !this.dragSnapshot) return
       const touch = event.touches && event.touches[0]
       const point = this.getTouchPoint(touch)
       if (!point) return
+      
+      // 查找正在拖拽的小鸡
+      const body = this.chickBodies.find(b => b.__id === this.activeChickId)
+      if (!body) return
+      
+      // 直接设置小鸡的位置
+      Body.setPosition(body, point)
+      
       const now = Date.now()
       const dt = Math.max(now - this.dragSnapshot.lastTime, 16)
       this.dragSnapshot.velocity = {
@@ -351,32 +389,40 @@ export default {
       }
       this.dragSnapshot.lastPoint = point
       this.dragSnapshot.lastTime = now
-      this.dragConstraint.pointA = point
+      
+      // 阻止默认行为和冒泡
+      event.preventDefault()
+      event.stopPropagation()
     },
-    handlePlaygroundTouchEnd() {
-      if (this.dragConstraint && this.dragConstraint.bodyB) {
-        const body = this.dragConstraint.bodyB
-        body.isDragging = false
-        if (this.dragSnapshot && this.dragSnapshot.velocity) {
-          Body.setVelocity(body, {
-            x: this.dragSnapshot.velocity.x * 30,
-            y: this.dragSnapshot.velocity.y * 30,
-          })
+    
+    // 全局触摸结束事件
+    handlePlaygroundTouchEnd(event) {
+      if (this.activeChickId) {
+        // 查找正在拖拽的小鸡
+        const body = this.chickBodies.find(b => b.__id === this.activeChickId)
+        if (body) {
+          body.isDragging = false
+          if (this.dragSnapshot && this.dragSnapshot.velocity) {
+            Body.setVelocity(body, {
+              x: this.dragSnapshot.velocity.x * 30,
+              y: this.dragSnapshot.velocity.y * 30,
+            })
+          }
         }
-        this.dragConstraint.bodyB = null
       }
       this.resetDragState()
+      
+      // 阻止默认行为和冒泡
+      if (event) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
     },
     resetDragState() {
       this.activeChickId = null
       this.dragSnapshot = null
     },
-    createStripFaces() {
-      this.chickStrip = CHICK_EXPRESSIONS.map((expression, index) => ({
-        id: `strip-${index}`,
-        expression,
-      }))
-    },
+
     getChickStyle(chick) {
       const left = (chick.x || 0) - (chick.radius || CHICK_RADIUS)
       const top = (chick.y || 0) - (chick.radius || CHICK_RADIUS)
@@ -436,6 +482,38 @@ export default {
         icon: 'none',
       })
     },
+    
+    // 切换底部导航栏
+    switchTab(tab) {
+      this.currentTab = tab
+      // 根据tab跳转到不同页面
+      switch (tab) {
+        case 'home':
+          // 首页，当前页面
+          break
+        case 'statistics':
+          // 跳转到统计页面
+          uni.showToast({
+            title: '统计页面即将开放',
+            icon: 'none',
+          })
+          break
+        case 'timeline':
+          // 跳转到时光页面
+          uni.showToast({
+            title: '时光页面即将开放',
+            icon: 'none',
+          })
+          break
+        case 'profile':
+          // 跳转到我的页面
+          uni.showToast({
+            title: '我的页面即将开放',
+            icon: 'none',
+          })
+          break
+      }
+    },
   },
 }
 </script>
@@ -443,14 +521,16 @@ export default {
 <style>
 .page,
 .screen {
+  height: 100vh;
   min-height: 100vh;
-  padding: 48rpx 48rpx 120rpx;
-  background-color: #ffffff;
+  padding: 48rpx 48rpx 220rpx; /* 增加底部padding以避免被底部导航栏遮挡 */
+  background: linear-gradient(180deg, #fff8f0 0%, #ffe4c5 50%, #ffd7b0 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .focus-screen {
@@ -608,45 +688,34 @@ export default {
   width: 100%;
   flex: 1;
   margin-top: 36rpx;
-  position: relative;
-  touch-action: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 100;
+  overflow: hidden;
 }
 
 .chick-playground {
   position: absolute;
   inset: 0;
-  border-radius: 52rpx 52rpx 0 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.06));
-  overflow: hidden;
+  pointer-events: none;
 }
 
 .playground-floor {
   position: absolute;
   left: 40rpx;
   right: 40rpx;
-  bottom: 100rpx;
+  bottom: 40rpx;
   height: 30rpx;
   background: rgba(0, 0, 0, 0.08);
   border-radius: 40rpx;
   filter: blur(4rpx);
 }
 
-.chick-row {
-  position: absolute;
-  left: 16rpx;
-  right: 16rpx;
-  bottom: 16rpx;
-  padding: 8rpx 18rpx;
-  min-height: 110rpx;
-  border-radius: 999rpx;
-  border: 3rpx solid #050505;
-  background: rgba(255, 255, 255, 0.95);
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-  box-shadow: 0 20rpx 40rpx rgba(0, 0, 0, 0.08);
-  z-index: 5;
-}
+
 
 .mini-chick {
   width: 86rpx;
@@ -825,7 +894,11 @@ export default {
   align-items: center;
   justify-content: center;
   transition: box-shadow 0.2s ease;
-  z-index: 4;
+  z-index: 101;
+  pointer-events: auto;
+  /* 确保小鸡可见 */
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .playful-chick--dragging {
@@ -1071,5 +1144,43 @@ export default {
   100% {
     transform: scaleX(1);
   }
+}
+
+/* 底部导航栏样式 */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100rpx;
+  background: #ffffff;
+  border-top: 1rpx solid #e0e0e0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 999;
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  flex: 1;
+}
+
+.tab-item--active {
+  color: #000000;
+}
+
+.tab-icon {
+  width: 40rpx;
+  height: 40rpx;
+  margin-bottom: 4rpx;
+}
+
+.tab-text {
+  font-size: 24rpx;
 }
 </style>

@@ -12,6 +12,18 @@
 			"style": {
 				"navigationBarTitleText": "咕咕学时"
 			}
+		},
+		{
+			"path": "pages/test/index",
+			"style": {
+				"navigationBarTitleText": "视频测试"
+			}
+		},
+		{
+			"path": "pages/video-test/index",
+			"style": {
+				"navigationBarTitleText": "视频组件测试"
+			}
 		}
 	],
 	"globalStyle": {

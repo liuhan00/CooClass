@@ -1,7 +1,9 @@
 <template>
   <view class="screen login-screen" :class="{ 'login-screen--entered': hasEntered }">
     <view class="hero-wrapper">
+      <!-- 视频或备用背景 -->
       <video
+        v-show="!videoError"
         id="heroVideo"
         class="hero-video"
         :src="videoSrc"
@@ -13,7 +15,19 @@
         show-fullscreen-btn="false"
         enable-progress-gesture="false"
         object-fit="cover"
+        @error="handleVideoError"
+        @loadeddata="handleVideoLoaded"
       ></video>
+      <!-- 视频加载失败时显示的备用背景 -->
+      <view v-show="videoError" class="video-placeholder">
+        <!-- 使用Canvas绘制动画 -->
+        <canvas 
+          canvas-id="loginCanvas" 
+          class="canvas-placeholder"
+          width="420" 
+          height="420"
+        ></canvas>
+      </view>
 
       <text class="hero-name">{{ brandName }}</text>
       <text class="hero-tagline">登录后让小鸡陪你专注成长</text>
@@ -41,10 +55,11 @@
 
     <view
       class="playground"
-      @touchstart.stop.prevent="handlePlaygroundTouchStart"
-      @touchmove.stop.prevent="handlePlaygroundTouchMove"
-      @touchend.stop.prevent="handlePlaygroundTouchEnd"
-      @touchcancel.stop.prevent="handlePlaygroundTouchEnd"
+      :class="{ 'chick-dragging-active': activeChickId }"
+      @touchstart="handleGlobalTouchStart"
+      @touchmove="handleGlobalTouchMove"
+      @touchend="handleGlobalTouchEnd"
+      @touchcancel="handleGlobalTouchEnd"
     >
       <view class="chick-playground">
         <view class="playground-floor"></view>
@@ -102,8 +117,8 @@ export default {
       dragSnapshot: null,
       gravityVector: { x: 0, y: 1 },
       rpxRatio: 1,
-      playgroundWidth: 654,
-      playgroundHeight: 520,
+      playgroundWidth: 750,
+      playgroundHeight: 1000,
       playgroundRect: null,
       engine: null,
       dragConstraint: null,
@@ -111,7 +126,8 @@ export default {
       frameId: null,
       hasEntered: false,
       loginTimer: null,
-      videoSrc: '/static/login.mp4',
+      videoSrc: '',
+      videoError: false,
 
       videoContext: null,
       accelerometerHandler: null,
@@ -119,6 +135,13 @@ export default {
   },
   onLoad() {
     this.cacheDeviceRatio()
+    // 设置视频路径
+    // 使用H.264编码的视频文件
+    setTimeout(() => {
+      // 先使用网络测试视频来确认是否是文件本身的问题
+      // this.videoSrc = './login_h264.mp4';
+      this.videoSrc = 'https://www.w3schools.com/html/mov_bbb.mp4';
+    }, 100)
   },
   onReady() {
     // 创建视频上下文
@@ -137,6 +160,9 @@ export default {
       this.initChicks()
       this.startPhysics()
     })
+    
+    // 初始化Canvas动画
+    this.initCanvasAnimation()
   },
   onShow() {
     this.startPhysics()
@@ -178,29 +204,51 @@ export default {
     },
     measurePlayground(done) {
       this.$nextTick(() => {
-        if (!uni.createSelectorQuery) {
-          if (typeof done === 'function') {
-            done()
+        // 获取整个屏幕的尺寸作为拖动区域
+        try {
+          const info = uni.getSystemInfoSync()
+          this.playgroundRect = {
+            left: 0,
+            top: 0,
+            width: info.windowWidth,
+            height: info.windowHeight
           }
-          return
-        }
-        uni
-          .createSelectorQuery()
-          .in(this)
-          .select('.chick-playground')
-          .boundingClientRect((rect) => {
-            if (rect && rect.width && rect.height) {
-              this.playgroundRect = rect
-              this.playgroundWidth = rect.width * this.rpxRatio
-              this.playgroundHeight = rect.height * this.rpxRatio
-            } else {
-              console.warn('未能获取操场尺寸，将沿用默认值')
-            }
+          this.playgroundWidth = info.windowWidth * this.rpxRatio
+          this.playgroundHeight = info.windowHeight * this.rpxRatio
+          
+          // 确保页面高度正确设置
+          // 在小程序环境中不使用document.querySelector
+        } catch (error) {
+          console.warn('获取屏幕信息失败，将使用默认值', error)
+          // 如果获取失败，仍然使用原来的操场尺寸
+          if (!uni.createSelectorQuery) {
             if (typeof done === 'function') {
               done()
             }
-          })
-          .exec()
+            return
+          }
+          uni
+            .createSelectorQuery()
+            .in(this)
+            .select('.chick-playground')
+            .boundingClientRect((rect) => {
+              if (rect && rect.width && rect.height) {
+                this.playgroundRect = rect
+                this.playgroundWidth = rect.width * this.rpxRatio
+                this.playgroundHeight = rect.height * this.rpxRatio
+              } else {
+                console.warn('未能获取操场尺寸，将沿用默认值')
+              }
+              if (typeof done === 'function') {
+                done()
+              }
+            })
+            .exec()
+        }
+        
+        if (typeof done === 'function') {
+          done()
+        }
       })
     },
     initChicks() {
@@ -208,7 +256,7 @@ export default {
       this.engine = Engine.create()
       this.engine.world.gravity.x = this.gravityVector.x
       this.engine.world.gravity.y = this.gravityVector.y
-      this.engine.world.gravity.scale = 0.0018
+      this.engine.world.gravity.scale = 0.003  // 进一步增加重力，让小鸡下落更快
       this.chickBodies = this.createChickBodies()
       const bounds = this.createWorldBounds()
       this.dragConstraint = Constraint.create({
@@ -224,19 +272,19 @@ export default {
     },
     createChickBodies() {
       const count = CHICK_EXPRESSIONS.length
-      const usableWidth = Math.max(this.playgroundWidth - CHICK_RADIUS * 2, CHICK_RADIUS * 2)
-      const spacing = count > 1 ? usableWidth / (count - 1) : 0
-      const startY = this.playgroundHeight - CHICK_RADIUS - 40
+      // 在屏幕可见区域底部附近分布小鸡
+      const startY = this.playgroundHeight * 0.5  // 从屏幕50%高度开始
+      const visibleHeight = this.playgroundHeight * 0.4  // 在40%的垂直范围内分布
       return CHICK_EXPRESSIONS.map((expression, index) => {
         const body = Bodies.circle(
-          CHICK_RADIUS + index * spacing,
-          startY + Math.random() * 30,
+          Math.random() * (this.playgroundWidth - CHICK_RADIUS * 4) + CHICK_RADIUS * 2,
+          Math.random() * (visibleHeight - CHICK_RADIUS * 4) + startY,
           CHICK_RADIUS,
           {
             restitution: 0.45,
             friction: 0.08,
-            frictionAir: 0.012,
-            density: 0.0016,
+            frictionAir: 0.005,  // 进一步减少空气阻力
+            density: 0.0025,     // 进一步增加密度
             slop: 0.2,
           }
         )
@@ -247,7 +295,7 @@ export default {
     },
     createWorldBounds() {
       const width = this.playgroundWidth
-      const height = this.playgroundHeight
+      const height = this.playgroundHeight * 0.9  // 设置物理边界在屏幕90%高度处，更靠近底部
       const floor = Bodies.rectangle(width / 2, height + 40, width, 80, {
         isStatic: true,
         restitution: 0.2,
@@ -255,7 +303,8 @@ export default {
       })
       const leftWall = Bodies.rectangle(-40, height / 2, 80, height * 2, { isStatic: true })
       const rightWall = Bodies.rectangle(width + 40, height / 2, 80, height * 2, { isStatic: true })
-      return [floor, leftWall, rightWall]
+      const topWall = Bodies.rectangle(width / 2, -40, width, 80, { isStatic: true })
+      return [floor, leftWall, rightWall, topWall]
     },
     syncChicksFromBodies() {
       if (!this.chickBodies.length) return
@@ -266,6 +315,9 @@ export default {
         y: body.position.y,
         radius: body.circleRadius || CHICK_RADIUS,
       }))
+      
+      // 调试信息：输出小鸡位置
+      // console.log('小鸡位置:', this.chicks);
     },
     startPhysics() {
       if (!this.engine || this.frameId) return
@@ -308,13 +360,18 @@ export default {
         y: this.clamp(relativeY, 0, this.playgroundHeight),
       }
     },
-    handlePlaygroundTouchStart(event) {
+    
+    // 全局触摸开始事件
+    handleGlobalTouchStart(event) {
       if (!this.chickBodies.length) return
       const touch = event.touches && event.touches[0]
       const point = this.getTouchPoint(touch)
       if (!point) return
+      
+      // 检查是否点击到了小鸡
       const hits = Query.point(this.chickBodies, point)
       if (!hits.length) return
+      
       const body = hits[0]
       body.isDragging = true
       this.activeChickId = body.__id
@@ -323,8 +380,14 @@ export default {
         lastTime: Date.now(),
         velocity: { x: 0, y: 0 },
       }
+      
+      // 阻止默认行为和冒泡
+      event.preventDefault()
+      event.stopPropagation()
     },
-    handlePlaygroundTouchMove(event) {
+    
+    // 全局触摸移动事件
+    handleGlobalTouchMove(event) {
       if (!this.activeChickId || !this.dragSnapshot) return
       const touch = event.touches && event.touches[0]
       const point = this.getTouchPoint(touch)
@@ -345,8 +408,14 @@ export default {
       }
       this.dragSnapshot.lastPoint = point
       this.dragSnapshot.lastTime = now
+      
+      // 阻止默认行为和冒泡
+      event.preventDefault()
+      event.stopPropagation()
     },
-    handlePlaygroundTouchEnd() {
+    
+    // 全局触摸结束事件
+    handleGlobalTouchEnd(event) {
       if (this.activeChickId) {
         // 查找正在拖拽的小鸡
         const body = this.chickBodies.find(b => b.__id === this.activeChickId)
@@ -361,7 +430,14 @@ export default {
         }
       }
       this.resetDragState()
+      
+      // 阻止默认行为和冒泡
+      if (event) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
     },
+
     resetDragState() {
       this.activeChickId = null
       this.dragSnapshot = null
@@ -410,6 +486,95 @@ export default {
     handleGuestLogin() {
       this.triggerEntrance('以游客模式体验')
     },
+    
+    // 视频加载错误处理
+    handleVideoError(err) {
+      console.error('视频加载失败:', err)
+      this.videoError = true
+      // 如果视频加载失败，显示默认背景色
+      uni.showToast({
+        title: '视频加载失败，显示默认背景',
+        icon: 'none'
+      })
+      
+      // 记录详细错误信息
+      if (err && err.detail) {
+        console.error('视频错误详情:', err.detail)
+        
+        // 添加更多调试信息
+        if (err.detail.errMsg) {
+          console.error('具体错误信息:', err.detail.errMsg)
+        }
+      }
+      
+      // 输出当前视频源路径
+      console.error('当前视频源路径:', this.videoSrc)
+    },
+    
+    // 视频播放准备完成
+    handleVideoLoaded() {
+      // console.log('视频加载完成')
+      this.videoError = false
+    },
+    
+    // 初始化Canvas动画
+    initCanvasAnimation() {
+      try {
+        // 获取Canvas上下文
+        const ctx = uni.createCanvasContext('loginCanvas', this)
+        
+        // 设置圆形背景
+        ctx.setFillStyle('#f6c08f')
+        ctx.beginPath()
+        ctx.arc(210, 210, 200, 0, 2 * Math.PI)
+        ctx.fill()
+        
+        // 绘制小鸡图案
+        this.drawChick(ctx)
+        
+        // 绘制完成
+        ctx.draw()
+      } catch (error) {
+        console.warn('Canvas动画初始化失败:', error)
+      }
+    },
+    
+    // 绘制小鸡图案
+    drawChick(ctx) {
+      // 绘制身体
+      ctx.setFillStyle('#FFD700')
+      ctx.beginPath()
+      ctx.arc(210, 210, 80, 0, 2 * Math.PI)
+      ctx.fill()
+      
+      // 绘制头部
+      ctx.setFillStyle('#FFD700')
+      ctx.beginPath()
+      ctx.arc(210, 150, 50, 0, 2 * Math.PI)
+      ctx.fill()
+      
+      // 绘制眼睛
+      ctx.setFillStyle('#000')
+      ctx.beginPath()
+      ctx.arc(195, 140, 8, 0, 2 * Math.PI)
+      ctx.arc(225, 140, 8, 0, 2 * Math.PI)
+      ctx.fill()
+      
+      // 绘制嘴巴
+      ctx.setFillStyle('#FF8C00')
+      ctx.beginPath()
+      ctx.moveTo(210, 160)
+      ctx.lineTo(230, 170)
+      ctx.lineTo(210, 180)
+      ctx.closePath()
+      ctx.fill()
+      
+      // 绘制翅膀（使用arc代替ellipse）
+      ctx.setFillStyle('#FFA500')
+      ctx.beginPath()
+      ctx.arc(180, 210, 25, 0, 2 * Math.PI)
+      ctx.fill()
+    },
     triggerEntrance(message) {
       uni.showToast({
         title: message,
@@ -440,6 +605,7 @@ export default {
 <style>
 .page,
 .screen {
+  height: 100vh;
   min-height: 100vh;
   padding: 48rpx 48rpx 120rpx;
   background: linear-gradient(180deg, #fff8f0 0%, #ffe4c5 50%, #ffd7b0 100%);
@@ -451,38 +617,61 @@ export default {
 }
 
 .login-screen {
-  padding-top: 80rpx;
+  padding-top: 120rpx;
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .login-screen--entered .content-panel {
-  margin-top: 300rpx;
+  margin-top: 340rpx;
 }
 
 .hero-wrapper {
   position: absolute;
-  top: 320rpx;
+  top: 360rpx;
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
   transition: transform 0.7s cubic-bezier(0.19, 1, 0.22, 1), top 0.7s cubic-bezier(0.19, 1, 0.22, 1),
     left 0.7s cubic-bezier(0.19, 1, 0.22, 1);
   z-index: 5;
+  width: 420rpx;
+  height: 420rpx;
 }
 
-.hero-video {
+.hero-video, .video-placeholder {
   width: 420rpx;
   height: 420rpx;
   border-radius: 220rpx;
   background: #f6c08f;
   box-shadow: 0 30rpx 60rpx rgba(0, 0, 0, 0.18);
   overflow: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.video-placeholder {
+  background: linear-gradient(135deg, #f6c08f, #ff9a4d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.canvas-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .login-screen--entered .hero-wrapper {
-  top: 92rpx;
+  top: 132rpx;
   left: 64rpx;
   transform: translate(0, 0) scale(0.58);
   transform-origin: top left;
@@ -505,7 +694,7 @@ export default {
 
 .content-panel {
   width: 100%;
-  margin-top: 460rpx;
+  margin-top: 500rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -614,23 +803,31 @@ button::after {
   width: 100%;
   flex: 1;
   margin-top: 36rpx;
-  position: relative;
-  touch-action: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 100;
+  overflow: hidden;
+}
+  
+.playground.chick-dragging-active {
+  pointer-events: auto;
 }
 
 .chick-playground {
   position: absolute;
   inset: 0;
-  border-radius: 52rpx 52rpx 0 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.06));
-  overflow: hidden;
+  pointer-events: none;
 }
 
 .playground-floor {
   position: absolute;
   left: 40rpx;
   right: 40rpx;
-  bottom: 100rpx;
+  bottom: 40rpx;
   height: 30rpx;
   background: rgba(0, 0, 0, 0.08);
   border-radius: 40rpx;
@@ -931,7 +1128,11 @@ button::after {
   align-items: center;
   justify-content: center;
   transition: box-shadow 0.2s ease;
-  z-index: 4;
+  z-index: 101;
+  pointer-events: auto;
+  /* 确保小鸡可见 */
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .playful-chick--dragging {

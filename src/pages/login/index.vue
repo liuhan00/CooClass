@@ -29,9 +29,9 @@
         ></canvas>
       </view>
 
-      <text class="hero-name">{{ brandName }}</text>
       <text class="hero-tagline">登录后让小鸡陪你专注成长</text>
     </view>
+    <text class="hero-name" style="margin-top: 20rpx; text-align: center; font-size: 56rpx; font-weight: 600; letter-spacing: 10rpx; color: #3a210e; z-index: 10;">{{ brandName }}</text>
 
     <view class="content-panel">
       <view class="top-bar">
@@ -46,7 +46,7 @@
 
       <view class="login-panel">
         <text class="login-title">拖动小鸡，感受治愈的重量</text>
-        <text class="login-subtitle">真实重力 + 碰撞衰减 + 抓取飞出手感</text>
+
         <button class="login-button login-button--wechat" @tap="handleWeChatLogin">微信授权登录</button>
         <button class="login-button login-button--ghost" @tap="handleGuestLogin">游客登录</button>
         <text class="login-tip">登录后可同步小鸡养成记录 · 数据云端保存</text>
@@ -630,7 +630,7 @@ export default {
 
 .hero-wrapper {
   position: absolute;
-  top: 360rpx;
+  top: 400rpx;
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
@@ -643,6 +643,7 @@ export default {
   z-index: 5;
   width: 420rpx;
   height: 420rpx;
+  margin-bottom: 80rpx;
 }
 
 .hero-video, .video-placeholder {
@@ -677,6 +678,18 @@ export default {
   transform-origin: top left;
 }
 
+.login-screen--entered .hero-name {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.login-screen--entered .hero-name {
+  margin-top: 20rpx;
+  text-align: left;
+  font-size: 32rpx;
+  letter-spacing: 6rpx;
+}
+
 .hero-name {
   margin-top: 24rpx;
   font-size: 56rpx;
@@ -694,7 +707,7 @@ export default {
 
 .content-panel {
   width: 100%;
-  margin-top: 500rpx;
+  margin-top: 540rpx;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -24,6 +24,12 @@
 			"style": {
 				"navigationBarTitleText": "视频组件测试"
 			}
+		},
+		{
+			"path": "pages/focused-duration-config/index",
+			"style": {
+				"navigationBarTitleText": "专注时长配置"
+			}
 		}
 	],
 	"globalStyle": {

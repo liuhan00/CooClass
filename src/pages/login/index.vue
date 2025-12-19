@@ -2,22 +2,15 @@
   <view class="screen login-screen" :class="{ 'login-screen--entered': hasEntered }">
     <view class="hero-wrapper">
       <!-- 视频或备用背景 -->
-      <video
+      <image
         v-show="!videoError"
-        id="heroVideo"
-        class="hero-video"
-        :src="videoSrc"
-        :autoplay="true"
-        :loop="true"
-        :muted="true"
-        :controls="false"
-        show-center-play-btn="false"
-        show-fullscreen-btn="false"
-        enable-progress-gesture="false"
-        object-fit="cover"
-        @error="handleVideoError"
-        @loadeddata="handleVideoLoaded"
-      ></video>
+        id="heroImage"
+        class="hero-image"
+        src="/static/logo.png"
+        mode="aspectFill"
+        @error="handleImageError"
+        @load="handleImageLoaded"
+      ></image>
       <!-- 视频加载失败时显示的备用背景 -->
       <view v-show="videoError" class="video-placeholder">
         <!-- 使用Canvas绘制动画 -->
@@ -28,10 +21,8 @@
           height="420"
         ></canvas>
       </view>
-
-      <text class="hero-tagline">登录后让小鸡陪你专注成长</text>
     </view>
-    <text class="hero-name" style="margin-top: 20rpx; text-align: center; font-size: 56rpx; font-weight: 600; letter-spacing: 10rpx; color: #3a210e; z-index: 10;">{{ brandName }}</text>
+    <text class="hero-name" style="margin-top: 50rpx; text-align: center; font-size: 56rpx; font-weight: 700; letter-spacing: 12rpx; color: #3a210e; z-index: 10; font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif; text-shadow: 2rpx 2rpx 8rpx rgba(58, 33, 14, 0.3);">{{ brandName }}</text>
 
     <view class="content-panel">
       <view class="top-bar">
@@ -129,7 +120,7 @@ export default {
       videoSrc: '',
       videoError: false,
 
-      videoContext: null,
+      imageContext: null,
       accelerometerHandler: null,
     }
   },
@@ -138,23 +129,31 @@ export default {
     // 设置视频路径
     // 使用H.264编码的视频文件
     setTimeout(() => {
-      // 先使用网络测试视频来确认是否是文件本身的问题
-      // this.videoSrc = './login_h264.mp4';
-      this.videoSrc = 'https://www.w3schools.com/html/mov_bbb.mp4';
+      // 使用H.264编码的视频文件
+      this.videoSrc = '/static/login_h264.mp4';
+      
+      // 如果直接引用文件失败，尝试使用uni.chooseVideo API
+      // 注意：这需要用户手动选择视频文件
+      /*
+      uni.chooseVideo({
+        sourceType: ['album'],
+        compressed: false,
+        maxDuration: 60,
+        success: (res) => {
+          this.videoSrc = res.tempFilePath;
+        },
+        fail: (err) => {
+          console.error('选择视频失败:', err);
+        }
+      });
+      */
     }, 100)
   },
   onReady() {
-    // 创建视频上下文
-    if (uni.createVideoContext) {
-      this.videoContext = uni.createVideoContext('heroVideo', this)
+    // 创建图片上下文
+    if (uni.createIntersectionObserver) {
+      this.imageContext = uni.createIntersectionObserver(this)
     }
-    
-    // 延迟播放视频以确保其已正确加载
-    setTimeout(() => {
-      if (this.videoContext && this.videoContext.play) {
-        this.videoContext.play()
-      }
-    }, 500)
     
     this.measurePlayground(() => {
       this.initChicks()
@@ -167,19 +166,10 @@ export default {
   onShow() {
     this.startPhysics()
     this.startAccelerometer()
-    // 延迟播放视频以确保其已正确加载
-    setTimeout(() => {
-      if (this.videoContext && this.videoContext.play) {
-        this.videoContext.play()
-      }
-    }, 300)
   },
   onHide() {
     this.stopPhysics()
     this.stopAccelerometer()
-    if (this.videoContext && this.videoContext.pause) {
-      this.videoContext.pause()
-    }
   },
   onUnload() {
     this.stopPhysics()
@@ -487,19 +477,19 @@ export default {
       this.triggerEntrance('以游客模式体验')
     },
     
-    // 视频加载错误处理
-    handleVideoError(err) {
-      console.error('视频加载失败:', err)
+    // 图片加载错误处理
+    handleImageError(err) {
+      console.error('图片加载失败:', err)
       this.videoError = true
-      // 如果视频加载失败，显示默认背景色
+      // 如果图片加载失败，显示默认背景色
       uni.showToast({
-        title: '视频加载失败，显示默认背景',
+        title: '图片加载失败，显示默认背景',
         icon: 'none'
       })
       
       // 记录详细错误信息
       if (err && err.detail) {
-        console.error('视频错误详情:', err.detail)
+        console.error('图片错误详情:', err.detail)
         
         // 添加更多调试信息
         if (err.detail.errMsg) {
@@ -507,13 +497,13 @@ export default {
         }
       }
       
-      // 输出当前视频源路径
-      console.error('当前视频源路径:', this.videoSrc)
+      // 输出当前图片源路径
+      console.error('当前图片源路径:', this.videoSrc)
     },
     
-    // 视频播放准备完成
-    handleVideoLoaded() {
-      // console.log('视频加载完成')
+    // 图片加载完成
+    handleImageLoaded() {
+      // console.log('图片加载完成')
       this.videoError = false
     },
     
@@ -630,7 +620,7 @@ export default {
 
 .hero-wrapper {
   position: absolute;
-  top: 400rpx;
+  top: 600rpx;
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
@@ -646,7 +636,7 @@ export default {
   margin-bottom: 80rpx;
 }
 
-.hero-video, .video-placeholder {
+.hero-image, .video-placeholder {
   width: 420rpx;
   height: 420rpx;
   border-radius: 220rpx;

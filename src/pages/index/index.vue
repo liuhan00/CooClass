@@ -1,7 +1,7 @@
 <template>
   <view class="screen focus-screen" :class="{ 'focus-screen--entered': hasEntered }">
     <view class="hero-wrapper">
-      <view class="walker-stage">
+      <view class="walker-stage" @tap="openChickenInfoModal">
         <view class="walker">
           <view class="walker-shadow"></view>
           <view class="walker-tail">
@@ -32,7 +32,7 @@
       <text class="hero-tagline">小鸡陪你专注成长</text>
     </view>
 
-    <view class="content-panel">
+    <view class="content-panel" v-show="currentTab === 'home' || showTimelineContent">
       <view class="top-bar">
         <view class="brand-badge">
           <text class="brand-title">{{ brandName }}</text>
@@ -43,7 +43,7 @@
         </view>
       </view>
 
-      <view class="focus-panel">
+      <view class="focus-panel" v-show="currentTab === 'home'">
         <view class="pill scene-pill" @tap="handleSceneTap">
           <text class="pill-icon">📍</text>
           <text class="pill-text">{{ focusScene }}</text>
@@ -61,6 +61,85 @@
       </view>
     </view>
 
+    <!-- 标签选择弹窗 -->
+    <view class="tag-selector-modal" v-if="showTagSelector" v-show="currentTab === 'home'">
+      <view class="tag-selector-overlay" @tap="closeTagSelector"></view>
+      <view class="tag-selector-container">
+        <view class="tag-selector-header">
+          <text class="tag-selector-title">选择标签</text>
+          <view class="more-options-button" @tap="toggleEditMode" v-if="!isEditingTags">
+            <text class="dot"></text>
+            <text class="dot"></text>
+            <text class="dot"></text>
+          </view>
+          <view class="confirm-edit-button" @tap="confirmEditTags" v-else>
+            <text class="checkmark">✓</text>
+          </view>
+        </view>
+        <view class="tag-selector-content">
+          <view class="new-tag-button" @tap="createNewTag">
+            <text class="plus-icon">+</text>
+            <text class="new-tag-text">新标签</text>
+          </view>
+          <view class="tags-container" :class="{ 'tags-container--editing': isEditingTags }">
+            <text class="edit-mode-hint" v-if="isEditingTags">点击标签修改名称</text>
+            <view 
+              v-for="(tag, index) in tags" 
+              :key="index"
+              class="tag-item" 
+              :class="{ 'tag-item--selected': tag.selected && !isEditingTags, 'tag-item--editing': isEditingTags && editingTagIndex === index }"
+              @tap="isEditingTags ? startEditTagName(index) : selectTag(index)"
+            >
+              <view class="tag-dot" :style="{ backgroundColor: tag.color }"></view>
+              <input 
+                v-if="isEditingTags && editingTagIndex === index" 
+                class="tag-input" 
+                v-model="editingTagName" 
+                @confirm="finishEditTagName"
+              />
+              <text class="tag-text" v-else>{{ tag.name }}</text>
+              <view class="delete-tag-button" v-if="isEditingTags" @tap.stop="showDeleteConfirm(index)">
+                <text class="minus">-</text>
+              </view>
+              <view class="confirm-edit-tag-button" v-if="isEditingTags && editingTagIndex === index" @tap.stop="finishEditTagName">
+                <text class="checkmark-large">✓</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 删除确认弹窗 -->
+    <view class="delete-confirm-modal" v-if="showDeleteConfirmDialog">
+      <view class="delete-confirm-overlay" @tap="cancelDelete"></view>
+      <view class="delete-confirm-container">
+        <text class="delete-confirm-text">确定要删除标签吗？删除后，标签包含的专注数据也会被删除</text>
+        <view class="delete-confirm-buttons">
+          <button class="delete-button" @tap="confirmDeleteTag">删除</button>
+          <button class="cancel-button" @tap="cancelDelete">取消</button>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 创建标签对话框 -->
+    <view class="create-tag-modal" v-if="showCreateTagDialog">
+      <view class="create-tag-overlay" @tap="cancelCreateTag"></view>
+      <view class="create-tag-container">
+        <text class="create-tag-title">创建新标签</text>
+        <input 
+          class="tag-name-input" 
+          placeholder="请输入标签名称" 
+          v-model="newTagName" 
+          maxlength="10"
+        />
+        <view class="create-tag-buttons">
+          <button class="create-button" @tap="confirmCreateTag">创建</button>
+          <button class="cancel-button" @tap="cancelCreateTag">取消</button>
+        </view>
+      </view>
+    </view>
+
     <view
       class="playground"
       :class="{ 'chick-dragging-active': activeChickId }"
@@ -69,7 +148,7 @@
       @touchend="handlePlaygroundTouchEnd"
       @touchcancel="handlePlaygroundTouchEnd"
     >
-      <view class="chick-playground">
+      <view class="chick-playground" v-show="currentTab === 'home'">
         <view class="playground-floor"></view>
         <view
           v-for="chick in chicks"
@@ -92,6 +171,174 @@
       </view>
     </view>
     
+    <!-- 时光模块内容 -->
+    <view class="timeline-content" v-if="showTimelineContent">
+      <view class="tabs">
+        <view 
+          class="tab tab--profile" 
+          :class="{ 'tab--active': activeTimelineTab === 'profile' }"
+          @tap="switchTimelineTab('profile')"
+        >
+          <text class="tab-text">小鸡档案</text>
+        </view>
+        <view 
+          class="tab tab--schedule" 
+          :class="{ 'tab--active': activeTimelineTab === 'schedule' }"
+          @tap="switchTimelineTab('schedule')"
+        >
+          <text class="tab-text">时光日程</text>
+        </view>
+      </view>
+      
+      <!-- Tab内容 -->
+      <scroll-view class="tab-content" scroll-y="true" enable-back-to-top="true" style="height: 800rpx; max-height: 800rpx; overflow-y: scroll;">
+        <!-- 小鸡档案Tab -->
+        <view v-if="activeTimelineTab === 'profile'" class="profile-tab">
+          <view class="profile-section">
+            <view class="section-header">
+              <text class="section-title">等级成长曲线</text>
+            </view>
+            <view class="growth-chart">
+              <!-- 这里可以放置等级成长曲线图表 -->
+              <text class="chart-placeholder">等级成长曲线图表</text>
+            </view>
+          </view>
+          
+          <view class="profile-section">
+            <view class="section-header">
+              <text class="section-title">累计专注时长</text>
+            </view>
+            <view class="focus-stats">
+              <view class="stat-item">
+                <text class="stat-value">120</text>
+                <text class="stat-label">小时</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-value">30</text>
+                <text class="stat-label">天</text>
+              </view>
+            </view>
+          </view>
+          
+          <view class="profile-section">
+            <view class="section-header">
+              <text class="section-title">解锁的小鸡皮肤/技能</text>
+            </view>
+            <view class="unlocked-items">
+              <view class="item">
+                <text class="item-name">默认皮肤</text>
+                <text class="item-status">已解锁</text>
+              </view>
+              <view class="item">
+                <text class="item-name">金色皮肤</text>
+                <text class="item-status">未解锁</text>
+              </view>
+              <view class="item">
+                <text class="item-name">飞行技能</text>
+                <text class="item-status">未解锁</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 时光日程Tab -->
+        <view v-if="activeTimelineTab === 'schedule'" class="schedule-tab">
+          <view class="calendar-section">
+            <view class="calendar-header">
+              <text class="month-year">2023年12月</text>
+              <view class="nav-buttons">
+                <text class="nav-button">‹</text>
+                <text class="nav-button">›</text>
+              </view>
+            </view>
+            <view class="calendar-grid">
+              <!-- 日历头部 -->
+              <view class="weekdays">
+                <text class="weekday">日</text>
+                <text class="weekday">一</text>
+                <text class="weekday">二</text>
+                <text class="weekday">三</text>
+                <text class="weekday">四</text>
+                <text class="weekday">五</text>
+                <text class="weekday">六</text>
+              </view>
+              <!-- 日历日期 -->
+              <view class="dates">
+                <!-- 示例日期，实际应该动态生成 -->
+                <view v-for="day in 31" :key="day" class="date-cell">
+                  <text class="date-number">{{ day }}</text>
+                  <view class="date-indicators">
+                    <view class="indicator indicator--completed"></view>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+          
+          <view class="schedule-section">
+            <view class="section-header">
+              <text class="section-title">今日日程</text>
+            </view>
+            <view class="schedule-list">
+              <view class="schedule-item">
+                <view class="schedule-info">
+                  <text class="schedule-time">09:00 - 10:30</text>
+                  <text class="schedule-title">阅读专注</text>
+                </view>
+                <view class="schedule-reward">
+                  <text class="reward-text">+10金币</text>
+                </view>
+              </view>
+              <view class="schedule-item">
+                <view class="schedule-info">
+                  <text class="schedule-time">14:00 - 15:30</text>
+                  <text class="schedule-title">工作专注</text>
+                </view>
+                <view class="schedule-reward">
+                  <text class="reward-text">+10金币</text>
+                </view>
+              </view>
+            </view>
+          </view>
+          
+          <view class="rules-section">
+            <view class="section-header">
+              <text class="section-title">规则说明</text>
+            </view>
+            <view class="rules-content">
+              <text class="rule-text">完成日程得金币，助力宠物升级</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+    
+  <view class="chicken-info-modal" v-if="showChickenInfoModal">
+    <view class="chicken-info-overlay" @tap="closeChickenInfoModal"></view>
+    <view class="chicken-info-container">
+      <view class="chicken-info-header">
+        <text class="chicken-nickname">{{ chickenInfo.nickname }}</text>
+      </view>
+      <view class="chicken-stats">
+        <view class="stat-item">
+          <text class="stat-label">当前等级</text>
+          <text class="stat-value">{{ chickenInfo.level }}</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-label">已养天数</text>
+          <text class="stat-value">{{ chickenInfo.days }}天</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-label">金币数量</text>
+          <text class="stat-value">{{ chickenInfo.coins }}</text>
+        </view>
+      </view>
+      <view class="chicken-info-footer">
+        <button class="view-details-button" @tap="goToTimeModule">查看详情</button>
+      </view>
+    </view>
+  </view>
+
     <!-- 底部导航栏 -->
     <view class="tab-bar">
       <view class="tab-item tab-item--active" @tap="switchTab('home')">
@@ -140,6 +387,14 @@ export default {
       brandName: '咕咕学时',
       focusScene: '阅读',
       focusDuration: '75:00',
+      // 小鸡信息
+      chickenInfo: {
+        nickname: '小咕',
+        level: 5,
+        days: 30,
+        coins: 128
+      },
+      showChickenInfoModal: false, // 是否显示小鸡信息弹窗,
       chicks: [],
       activeChickId: null,
       dragSnapshot: null,
@@ -155,6 +410,32 @@ export default {
       hasEntered: false,
       accelerometerHandler: null,
       currentTab: 'home', // 当前选中的tab
+      showTagSelector: false, // 是否显示标签选择器
+      showTimelineContent: false, // 是否显示时光模块内容
+      activeTimelineTab: 'profile', // 时光模块当前选中的tab
+      isEditingTags: false, // 是否处于标签编辑模式
+      editingTagName: '', // 正在编辑的标签名称
+      editingTagIndex: -1, // 正在编辑的标签索引
+      showDeleteConfirmDialog: false, // 是否显示删除确认弹窗
+      deletingTagIndex: -1, // 正在删除的标签索引
+      showCreateTagDialog: false, // 是否显示创建标签对话框
+      newTagName: '', // 新标签名称
+      tagColors: [ // 可选的标签颜色
+        '#4CAF50', // 绿色
+        '#FF9800', // 橙色
+        '#F44336', // 红色
+        '#2196F3', // 蓝色
+        '#9C27B0', // 紫色
+        '#009688', // 青色
+        '#FF5722', // 深橙色
+        '#795548'  // 棕色
+      ],
+      tags: [
+        { name: '阅读', color: '#4CAF50', selected: true },
+        { name: '健身', color: '#FF9800', selected: false },
+        { name: '工作', color: '#F44336', selected: false },
+        { name: '专注', color: '#2196F3', selected: false }
+      ]
     }
   },
   onLoad() {
@@ -466,17 +747,38 @@ export default {
       return Math.min(Math.max(value, min), max)
     },
     handleSceneTap() {
-      uni.showToast({
-        title: '场景选择即将开放',
-        icon: 'none',
-      })
+      // 打开标签选择器
+      this.showTagSelectorModal()
     },
     handleDurationTap() {
-      uni.showToast({
-        title: '敬请期待时长配置',
-        icon: 'none',
+      // 跳转到专注时长配置页面
+      uni.navigateTo({
+        url: '/pages/focused-duration-config/index'
       })
     },
+
+    // 显示小鸡信息弹窗
+    openChickenInfoModal() {
+      this.showChickenInfoModal = true
+    },
+
+    // 关闭小鸡信息弹窗
+    closeChickenInfoModal() {
+      this.showChickenInfoModal = false
+    },
+        
+    // 切换时光模块Tab
+    switchTimelineTab(tab) {
+      this.activeTimelineTab = tab
+    },
+        
+    // 跳转到时光模块
+    goToTimeModule() {
+      this.showChickenInfoModal = false
+      // 切换到底部导航栏的时光选项
+      this.switchTab('timeline')
+    },
+
     handleStartFocus() {
       uni.showToast({
         title: '开始专注',
@@ -487,6 +789,8 @@ export default {
     // 切换底部导航栏
     switchTab(tab) {
       this.currentTab = tab
+      // 根据tab显示不同内容
+      this.showTimelineContent = tab === 'timeline'
       // 根据tab跳转到不同页面
       switch (tab) {
         case 'home':
@@ -499,13 +803,6 @@ export default {
             icon: 'none',
           })
           break
-        case 'timeline':
-          // 跳转到时光页面
-          uni.showToast({
-            title: '时光页面即将开放',
-            icon: 'none',
-          })
-          break
         case 'profile':
           // 跳转到我的页面
           uni.showToast({
@@ -515,6 +812,157 @@ export default {
           break
       }
     },
+    
+    // 显示标签选择器
+    showTagSelectorModal() {
+      this.showTagSelector = true
+    },
+    
+    // 关闭标签选择器
+    closeTagSelector() {
+      this.showTagSelector = false
+      this.isEditingTags = false
+      this.editingTagIndex = -1
+      this.editingTagName = ''
+      this.showDeleteConfirmDialog = false
+      this.deletingTagIndex = -1
+      this.showCreateTagDialog = false
+      this.newTagName = ''
+    },
+    
+    // 选择标签
+    selectTag(index) {
+      // 取消之前选中的标签
+      this.tags.forEach(tag => tag.selected = false)
+      // 选中当前标签
+      this.tags[index].selected = true
+      // 更新场景名称
+      this.focusScene = this.tags[index].name
+      // 关闭选择器
+      this.closeTagSelector()
+    },
+    
+    // 创建新标签
+    createNewTag() {
+      if (this.isEditingTags) {
+        uni.showToast({
+          title: '请先完成当前编辑',
+          icon: 'none'
+        })
+        return
+      }
+      
+      // 显示创建新标签的输入框
+      this.showCreateTagDialog = true
+    },
+    
+    // 切换编辑模式
+    toggleEditMode() {
+      this.isEditingTags = true
+    },
+    
+    // 确认编辑标签
+    confirmEditTags() {
+      this.isEditingTags = false
+      this.editingTagIndex = -1
+      this.editingTagName = ''
+    },
+    
+    // 开始编辑标签名称
+    startEditTagName(index) {
+      this.editingTagIndex = index
+      this.editingTagName = this.tags[index].name
+    },
+    
+    // 完成编辑标签名称
+    finishEditTagName() {
+      if (this.editingTagIndex >= 0 && this.editingTagName.trim() !== '') {
+        this.tags[this.editingTagIndex].name = this.editingTagName.trim()
+      }
+      this.editingTagIndex = -1
+      this.editingTagName = ''
+    },
+    
+    // 显示删除确认弹窗
+    showDeleteConfirm(index) {
+      this.deletingTagIndex = index
+      this.showDeleteConfirmDialog = true
+    },
+    
+    // 确认删除标签
+    confirmDeleteTag() {
+      if (this.deletingTagIndex >= 0) {
+        // 如果删除的是选中的标签，需要重新选择一个标签
+        if (this.tags[this.deletingTagIndex].selected) {
+          // 如果还有其他标签，选择第一个作为新的选中标签
+          if (this.tags.length > 1) {
+            const newIndex = this.deletingTagIndex === 0 ? 1 : 0
+            this.tags[newIndex].selected = true
+            this.focusScene = this.tags[newIndex].name
+          }
+        }
+        
+        // 删除标签
+        this.tags.splice(this.deletingTagIndex, 1)
+        
+        // 重置状态
+        this.deletingTagIndex = -1
+        this.showDeleteConfirmDialog = false
+      }
+    },
+    
+    // 取消删除
+    cancelDelete() {
+      this.deletingTagIndex = -1
+      this.showDeleteConfirmDialog = false
+    },
+        
+    // 确认创建新标签
+    confirmCreateTag() {
+      if (this.newTagName.trim() === '') {
+        uni.showToast({
+          title: '请输入标签名称',
+          icon: 'none'
+        })
+        return
+      }
+          
+      // 检查标签名称是否已存在
+      const existingTag = this.tags.find(tag => tag.name === this.newTagName.trim())
+      if (existingTag) {
+        uni.showToast({
+          title: '标签名称已存在',
+          icon: 'none'
+        })
+        return
+      }
+          
+      // 自动选择一个颜色（循环使用预设颜色）
+      const colorIndex = this.tags.length % this.tagColors.length
+      const selectedColor = this.tagColors[colorIndex]
+          
+      // 添加新标签
+      this.tags.push({
+        name: this.newTagName.trim(),
+        color: selectedColor,
+        selected: false
+      })
+          
+      // 重置状态
+      this.newTagName = ''
+      this.showCreateTagDialog = false
+          
+      uni.showToast({
+        title: '标签创建成功',
+        icon: 'success'
+      })
+    },
+        
+    // 取消创建标签
+    cancelCreateTag() {
+      this.newTagName = ''
+      this.showCreateTagDialog = false
+    }
   },
 }
 </script>
@@ -1268,6 +1716,389 @@ export default {
   }
 }
 
+/* 标签选择器样式 */
+.tag-selector-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+}
+
+.tag-selector-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.tag-selector-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background-color: #ffffff;
+  border-top-left-radius: 30rpx;
+  border-top-right-radius: 30rpx;
+  padding: 40rpx;
+  box-sizing: border-box;
+}
+
+.tag-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40rpx;
+}
+
+.tag-selector-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #000000;
+}
+
+.more-options-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 60rpx;
+}
+
+.confirm-edit-button {
+  width: 50rpx;
+  height: 50rpx;
+  border-radius: 50%;
+  background-color: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.confirm-edit-button:active {
+  transform: scale(1.1);
+  background-color: #333333;
+}
+
+.checkmark {
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: bold;
+}
+
+.dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background-color: #000000;
+  margin: 0 4rpx;
+}
+
+.new-tag-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 280rpx;
+  height: 100rpx;
+  background-color: #ffffff;
+  border: 2rpx dashed #e0e0e0;
+  border-radius: 50rpx;
+  margin-bottom: 40rpx;
+  transition: all 0.3s ease;
+}
+
+.new-tag-button:active {
+  background-color: #f0f0f0;
+  border-color: #cccccc;
+}
+
+.plus-icon {
+  font-size: 50rpx;
+  color: #000000;
+  margin-right: 15rpx;
+}
+
+.new-tag-text {
+  font-size: 32rpx;
+  color: #000000;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+  position: relative;
+}
+
+.tags-container::before {
+  content: '';
+  position: absolute;
+  top: -20rpx;
+  left: 0;
+  right: 0;
+  height: 2rpx;
+  background-color: #e0e0e0;
+  display: none;
+}
+
+.tags-container--editing::before {
+  display: block;
+}
+
+.edit-mode-hint {
+  width: 100%;
+  text-align: center;
+  font-size: 28rpx;
+  color: #666666;
+  margin-bottom: 20rpx;
+  font-style: italic;
+}
+
+.tag-item {
+  display: flex;
+  align-items: center;
+  padding: 30rpx 40rpx;
+  background-color: #ffffff;
+  border: 2rpx solid #e0e0e0;
+  border-radius: 40rpx;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.tag-item--editing {
+  background-color: #f0f0f0;
+  border-color: #cccccc;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.delete-tag-button {
+  position: absolute;
+  top: -15rpx;
+  right: -15rpx;
+  width: 30rpx;
+  height: 30rpx;
+  border-radius: 50%;
+  background-color: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.delete-tag-button:active {
+  transform: scale(1.1);
+  background-color: #333333;
+}
+
+.minus {
+  color: #ffffff;
+  font-size: 20rpx;
+  font-weight: bold;
+}
+
+.tag-input {
+  flex: 1;
+  font-size: 32rpx;
+  color: #000000;
+  border: none;
+  outline: none;
+  background: transparent;
+  border-bottom: 2rpx solid #000000;
+  padding: 10rpx 0;
+  margin-right: 20rpx;
+  height: 40rpx;
+  line-height: 40rpx;
+  vertical-align: middle;
+}
+
+.confirm-edit-tag-button {
+  margin-left: 20rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background-color: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.confirm-edit-tag-button:active {
+  transform: scale(1.1);
+  background-color: #333333;
+}
+
+.checkmark-large {
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+
+.tag-item--selected {
+  background-color: #4CAF50;
+  border-color: #4CAF50;
+}
+
+.tag-item--selected .tag-text {
+  color: #ffffff;
+}
+
+.tag-dot {
+  width: 30rpx;
+  height: 30rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+  align-self: center;
+}
+
+.tag-text {
+  font-size: 32rpx;
+  color: #000000;
+  height: 40rpx;
+  line-height: 40rpx;
+  vertical-align: middle;
+}
+
+/* 删除确认弹窗样式 */
+.delete-confirm-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1001;
+}
+
+.delete-confirm-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.delete-confirm-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  box-sizing: border-box;
+}
+
+.delete-confirm-text {
+  font-size: 28rpx;
+  color: #000000;
+  text-align: center;
+  margin-bottom: 40rpx;
+  line-height: 1.5;
+}
+
+.delete-confirm-buttons {
+  display: flex;
+  justify-content: space-between;
+}
+
+.delete-button {
+  flex: 1;
+  height: 80rpx;
+  background-color: #000000;
+  color: #ffffff;
+  border-radius: 40rpx;
+  border: none;
+  font-size: 32rpx;
+  margin-right: 20rpx;
+}
+
+.cancel-button {
+  flex: 1;
+  height: 80rpx;
+  background-color: #e0e0e0;
+  color: #000000;
+  border-radius: 40rpx;
+  border: none;
+  font-size: 32rpx;
+  margin-left: 20rpx;
+}
+
+/* 创建标签对话框样式 */
+.create-tag-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1002;
+}
+
+.create-tag-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.create-tag-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  box-sizing: border-box;
+}
+
+.create-tag-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #000000;
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.tag-name-input {
+  width: 100%;
+  height: 80rpx;
+  border: 2rpx solid #e0e0e0;
+  border-radius: 40rpx;
+  padding: 0 30rpx;
+  font-size: 32rpx;
+  margin-bottom: 40rpx;
+  box-sizing: border-box;
+}
+
+.tag-name-input:focus {
+  border-color: #000000;
+}
+
+.create-tag-buttons {
+  display: flex;
+  justify-content: space-between;
+}
+
+.create-button {
+  flex: 1;
+  height: 80rpx;
+  background-color: #000000;
+  color: #ffffff;
+  border-radius: 40rpx;
+  border: none;
+  font-size: 32rpx;
+  margin-right: 20rpx;
+}
+
 /* 底部导航栏样式 */
 .tab-bar {
   position: fixed;
@@ -1305,4 +2136,356 @@ export default {
 .tab-text {
   font-size: 24rpx;
 }
+
+/* 小鸡信息弹窗样式 */
+.chicken-info-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+}
+
+.chicken-info-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.chicken-info-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.2);
+}
+
+.chicken-info-header {
+  text-align: center;
+  margin-bottom: 30rpx;
+}
+
+.chicken-nickname {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 10rpx;
+}
+
+.chicken-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 40rpx;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: #666666;
+  margin-bottom: 10rpx;
+}
+
+.stat-value {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.chicken-info-footer {
+  text-align: center;
+}
+
+.view-details-button {
+  width: 100%;
+  height: 80rpx;
+  background-color: #000000;
+  color: #ffffff;
+  border-radius: 40rpx;
+  font-size: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 时光模块样式 */
+.timeline-content {
+  flex: 1;
+  padding: 30rpx;
+}
+
+.timeline-content .tabs {
+  display: flex;
+  width: 100%;
+  background-color: #ffffff;
+  border-bottom: 1rpx solid #e0e0e0;
+  margin-bottom: 30rpx;
+}
+
+.timeline-content .tab {
+  flex: 1;
+  text-align: center;
+  padding: 30rpx;
+  box-sizing: border-box;
+  min-width: 0; /* 防止内容溢出影响宽度 */
+  white-space: nowrap; /* 防止文字换行影响宽度 */
+  overflow: hidden; /* 防止内容溢出 */
+  border-bottom: 6rpx solid transparent;
+}
+
+.timeline-content .tab--profile,
+.timeline-content .tab--schedule {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-content .tab--active {
+  border-bottom-color: #000000;
+  font-weight: bold;
+}
+
+.timeline-content .tab-text {
+  font-size: 32rpx;
+  color: #666666;
+  white-space: nowrap; /* 防止文字换行 */
+  overflow: hidden; /* 防止文字溢出 */
+  text-overflow: ellipsis; /* 文字溢出显示省略号 */
+}
+
+.timeline-content .tab--active .tab-text {
+  color: #000000;
+  font-weight: bold;
+}
+
+.timeline-content .tab-content {
+  /* 样式已移至内联样式 */
+}
+
+.timeline-content .profile-tab,
+.timeline-content .schedule-tab {
+  padding: 30rpx;
+}
+
+.timeline-content .profile-section,
+.timeline-content .schedule-section,
+.timeline-content .calendar-section,
+.timeline-content .rules-section {
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.timeline-content .section-header {
+  margin-bottom: 20rpx;
+}
+
+.timeline-content .section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.timeline-content .growth-chart {
+  height: 300rpx;
+  background-color: #f0f0f0;
+  border-radius: 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timeline-content .chart-placeholder {
+  color: #999999;
+  font-size: 28rpx;
+}
+
+.timeline-content .focus-stats {
+  display: flex;
+  justify-content: space-around;
+}
+
+.timeline-content .stat-item {
+  text-align: center;
+}
+
+.timeline-content .stat-value {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #000000;
+}
+
+.timeline-content .stat-label {
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.timeline-content .unlocked-items {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.timeline-content .item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx;
+  background-color: #f9f9f9;
+  border-radius: 10rpx;
+}
+
+.timeline-content .item-name {
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.timeline-content .item-status {
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.timeline-content .item-status:not(:first-child) {
+  color: #ff9800;
+}
+
+.timeline-content .calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.timeline-content .month-year {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.timeline-content .nav-buttons {
+  display: flex;
+  gap: 20rpx;
+}
+
+.timeline-content .nav-button {
+  font-size: 36rpx;
+  color: #666666;
+  padding: 10rpx;
+}
+
+.timeline-content .weekdays {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.timeline-content .weekday {
+  flex: 1;
+  text-align: center;
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.timeline-content .dates {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.timeline-content .date-cell {
+  width: calc(100% / 7);
+  height: 80rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.timeline-content .date-number {
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.timeline-content .date-indicators {
+  position: absolute;
+  bottom: 10rpx;
+  display: flex;
+}
+
+.timeline-content .indicator {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background-color: #e0e0e0;
+}
+
+.timeline-content .indicator--completed {
+  background-color: #4CAF50;
+}
+
+.timeline-content .schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.timeline-content .schedule-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx;
+  background-color: #f9f9f9;
+  border-radius: 10rpx;
+}
+
+.timeline-content .schedule-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-content .schedule-time {
+  font-size: 24rpx;
+  color: #666666;
+  margin-bottom: 5rpx;
+}
+
+.timeline-content .schedule-title {
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.timeline-content .schedule-reward {
+  background-color: #FFF3E0;
+  padding: 10rpx 20rpx;
+  border-radius: 20rpx;
+}
+
+.timeline-content .reward-text {
+  font-size: 24rpx;
+  color: #FF9800;
+  font-weight: bold;
+}
+
+.timeline-content .rules-content {
+  padding: 20rpx;
+  background-color: #E3F2FD;
+  border-radius: 10rpx;
+}
+
+.timeline-content .rule-text {
+  font-size: 28rpx;
+  color: #1976D2;
+}
 </style>
+

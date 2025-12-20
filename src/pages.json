@@ -30,6 +30,12 @@
 			"style": {
 				"navigationBarTitleText": "专注时长配置"
 			}
+		},
+		{
+			"path": "pages/create-time/index",
+			"style": {
+				"navigationBarTitleText": "创建时光"
+			}
 		}
 	],
 	"globalStyle": {

@@ -84,7 +84,7 @@ import Matter from 'matter-js'
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
-const FRAME_INTERVAL = 1000 / 60
+const FRAME_INTERVAL = 1000 / 60  // 使用推荐的60fps以避免警告
 const CHICK_RADIUS = 35
 
 const requestFrame =
@@ -104,6 +104,7 @@ export default {
     return {
       brandName: '咕咕学时',
       chicks: [],
+      chickBodyMap: {}, // 存储body与chick信息的映射
       activeChickId: null,
       dragSnapshot: null,
       gravityVector: { x: 0, y: 1 },
@@ -246,7 +247,8 @@ export default {
       this.engine = Engine.create()
       this.engine.world.gravity.x = this.gravityVector.x
       this.engine.world.gravity.y = this.gravityVector.y
-      this.engine.world.gravity.scale = 0.003  // 进一步增加重力，让小鸡下落更快
+      this.engine.world.gravity.scale = 0.001  // 减少重力以降低计算复杂度
+      this.engine.timing.timeScale = 1.0
       this.chickBodies = this.createChickBodies()
       const bounds = this.createWorldBounds()
       this.dragConstraint = Constraint.create({
@@ -265,49 +267,60 @@ export default {
       // 在屏幕可见区域底部附近分布小鸡
       const startY = this.playgroundHeight * 0.5  // 从屏幕50%高度开始
       const visibleHeight = this.playgroundHeight * 0.4  // 在40%的垂直范围内分布
+      // 重置映射表
+      this.chickBodyMap = {}
       return CHICK_EXPRESSIONS.map((expression, index) => {
         const body = Bodies.circle(
           Math.random() * (this.playgroundWidth - CHICK_RADIUS * 4) + CHICK_RADIUS * 2,
           Math.random() * (visibleHeight - CHICK_RADIUS * 4) + startY,
           CHICK_RADIUS,
           {
-            restitution: 0.45,
-            friction: 0.08,
-            frictionAir: 0.005,  // 进一步减少空气阻力
-            density: 0.0025,     // 进一步增加密度
-            slop: 0.2,
+            restitution: 0.3,    // 降低弹性以减少反弹计算
+            friction: 0.1,       // 增加摩擦力以稳定小鸡
+            frictionAir: 0.01,   // 增加空气阻力以减少不必要的移动
+            density: 0.001,      // 降低密度以减少物理计算
+            slop: 0.5,           // 增加slop值以减少约束计算
           }
         )
-        body.__id = `chick-${index}`
-        body.__expression = expression
+        // 使用映射表存储chick信息，避免直接在body对象上添加属性
+        const chickId = `chick-${index}`
+        this.chickBodyMap[chickId] = {
+          id: chickId,
+          expression: expression
+        }
         return body
       })
     },
     createWorldBounds() {
       const width = this.playgroundWidth
       const height = this.playgroundHeight * 0.9  // 设置物理边界在屏幕90%高度处，更靠近底部
+      // 简化边界以减少计算
       const floor = Bodies.rectangle(width / 2, height + 40, width, 80, {
         isStatic: true,
-        restitution: 0.2,
-        friction: 0.1,
+        restitution: 0.1,     // 降低弹性
+        friction: 0.2,        // 增加摩擦力
       })
       const leftWall = Bodies.rectangle(-40, height / 2, 80, height * 2, { isStatic: true })
       const rightWall = Bodies.rectangle(width + 40, height / 2, 80, height * 2, { isStatic: true })
-      const topWall = Bodies.rectangle(width / 2, -40, width, 80, { isStatic: true })
-      return [floor, leftWall, rightWall, topWall]
+      // 注意：移除了topWall以避免未定义错误
+      return [floor, leftWall, rightWall]
     },
     syncChicksFromBodies() {
       if (!this.chickBodies.length) return
-      this.chicks = this.chickBodies.map((body) => ({
-        id: body.__id,
-        expression: body.__expression,
-        x: body.position.x,
-        y: body.position.y,
-        radius: body.circleRadius || CHICK_RADIUS,
-      }))
+      this.chicks = this.chickBodies.map((body) => {
+        // 从映射表中获取chick信息
+        const chickInfo = this.chickBodyMap[`chick-${this.chickBodies.indexOf(body)}`] || {};
+        return {
+          id: chickInfo.id || `chick-${this.chickBodies.indexOf(body)}`,
+          expression: chickInfo.expression || 'calm',
+          x: body.position.x,
+          y: body.position.y,
+          radius: body.circleRadius || CHICK_RADIUS,
+        }
+      })
       
-      // 调试信息：输出小鸡位置
-      // console.log('小鸡位置:', this.chicks);
+      // 减少日志输出频率，避免刷屏
+      // console.log('小鸡位置更新:', this.chicks.length, '只小鸡');
     },
     startPhysics() {
       if (!this.engine || this.frameId) return
@@ -353,6 +366,7 @@ export default {
     
     // 全局触摸开始事件
     handleGlobalTouchStart(event) {
+      console.log('开始拖拽小鸡');
       if (!this.chickBodies.length) return
       const touch = event.touches && event.touches[0]
       const point = this.getTouchPoint(touch)
@@ -364,7 +378,9 @@ export default {
       
       const body = hits[0]
       body.isDragging = true
-      this.activeChickId = body.__id
+      // 通过chickBodyMap找到对应的chickId
+      const chickIndex = this.chickBodies.indexOf(body);
+      this.activeChickId = `chick-${chickIndex}`
       this.dragSnapshot = {
         lastPoint: point,
         lastTime: Date.now(),
@@ -376,6 +392,63 @@ export default {
       event.stopPropagation()
     },
     
+    handleGlobalTouchMove(event) {
+      if (!this.activeChickId || !this.dragSnapshot) return
+      const touch = event.touches && event.touches[0]
+      const point = this.getTouchPoint(touch)
+      if (!point) return
+      
+      // 查找正在拖拽的小鸡
+      const chickInfo = this.chickBodyMap[this.activeChickId];
+              const bodyIndex = Object.keys(this.chickBodyMap).indexOf(this.activeChickId);
+              const body = this.chickBodies[bodyIndex]
+      if (!body) return
+      
+      // 直接设置小鸡的位置
+      Body.setPosition(body, point)
+      
+      const now = Date.now()
+      const dt = Math.max(now - this.dragSnapshot.lastTime, 16)
+      this.dragSnapshot.velocity = {
+        x: (point.x - this.dragSnapshot.lastPoint.x) / dt,
+        y: (point.y - this.dragSnapshot.lastPoint.y) / dt,
+      }
+      this.dragSnapshot.lastPoint = point
+      this.dragSnapshot.lastTime = now
+      
+      // 阻止默认行为和冒泡
+      event.preventDefault()
+      event.stopPropagation()
+      
+      // 添加调试信息输出
+      console.log('小鸡拖拽中:', point.x, point.y);
+    },
+    
+    handleGlobalTouchEnd(event) {
+      console.log('结束拖拽小鸡');
+      if (this.activeChickId) {
+        // 查找正在拖拽的小鸡
+        const chickInfo = this.chickBodyMap[this.activeChickId];
+                const bodyIndex = Object.keys(this.chickBodyMap).indexOf(this.activeChickId);
+                const body = this.chickBodies[bodyIndex]
+        if (body) {
+          body.isDragging = false
+          if (this.dragSnapshot && this.dragSnapshot.velocity) {
+            Body.setVelocity(body, {
+              x: this.dragSnapshot.velocity.x * 30,
+              y: this.dragSnapshot.velocity.y * 30,
+            })
+          }
+        }
+      }
+      this.activeChickId = null
+      this.dragSnapshot = null
+      
+      // 阻止默认行为和冒泡
+      if (event && typeof event.preventDefault === 'function') event.preventDefault()
+      if (event && typeof event.stopPropagation === 'function') event.stopPropagation()
+    },
+    
     // 全局触摸移动事件
     handleGlobalTouchMove(event) {
       if (!this.activeChickId || !this.dragSnapshot) return
@@ -384,7 +457,9 @@ export default {
       if (!point) return
       
       // 查找正在拖拽的小鸡
-      const body = this.chickBodies.find(b => b.__id === this.activeChickId)
+      const chickInfo = this.chickBodyMap[this.activeChickId];
+              const bodyIndex = Object.keys(this.chickBodyMap).indexOf(this.activeChickId);
+              const body = this.chickBodies[bodyIndex]
       if (!body) return
       
       // 直接设置小鸡的位置
@@ -408,7 +483,9 @@ export default {
     handleGlobalTouchEnd(event) {
       if (this.activeChickId) {
         // 查找正在拖拽的小鸡
-        const body = this.chickBodies.find(b => b.__id === this.activeChickId)
+        const chickInfo = this.chickBodyMap[this.activeChickId];
+                const bodyIndex = Object.keys(this.chickBodyMap).indexOf(this.activeChickId);
+                const body = this.chickBodies[bodyIndex]
         if (body) {
           body.isDragging = false
           if (this.dragSnapshot && this.dragSnapshot.velocity) {

@@ -1,6 +1,6 @@
 <template>
   <view class="screen focus-screen" :class="{ 'focus-screen--entered': hasEntered }">
-    <view class="hero-wrapper">
+    <view class="hero-wrapper" v-show="currentTab === 'home'">
       <view class="walker-stage" @tap="openChickenInfoModal">
         <view class="walker">
           <view class="walker-shadow"></view>
@@ -28,11 +28,17 @@
           <view class="walker-leg walker-leg--back"></view>
         </view>
       </view>
+      
+      <!-- 喂食按钮 -->
+      <view class="feed-button" @tap="feedChicken">
+        <text class="feed-icon">🍗</text>
+        <text class="feed-text">喂食</text>
+      </view>
       <text class="hero-name">{{ brandName }}</text>
       <text class="hero-tagline">小鸡陪你专注成长</text>
     </view>
 
-    <view class="content-panel" v-show="currentTab === 'home' || showTimelineContent">
+    <view class="content-panel" v-show="currentTab === 'home'">
       <view class="top-bar">
         <view class="brand-badge">
           <text class="brand-title">{{ brandName }}</text>
@@ -122,6 +128,45 @@
       </view>
     </view>
     
+    <!-- 喂食弹窗 -->
+    <view class="feed-modal" v-if="showFeedModal">
+      <view class="feed-overlay" @tap="closeFeedModal"></view>
+      <view class="feed-container">
+        <!-- 顶部导航栏 -->
+        <view class="feed-header">
+          <view class="back-button" @tap="closeFeedModal">
+            <text class="back-icon">‹</text>
+          </view>
+          <text class="feed-title">选择零食</text>
+        </view>
+        
+        <!-- 零食选项列表 -->
+        <scroll-view class="snacks-list" scroll-y="true">
+          <view 
+            v-for="(snack, index) in snacks" 
+            :key="index"
+            class="snack-item"
+          >
+            <view class="snack-icon" :class="`snack-icon--${snack.type}`">{{ snack.icon }}
+              <text class="snack-exp">{{ snack.cost }}</text>
+            </view>
+            <view class="snack-info">
+              <text class="snack-name">{{ snack.name }}</text>
+              <text class="snack-quantity">拥有 {{ snack.quantity }}</text>
+            </view>
+            <button 
+              class="feed-snack-button" 
+              :class="{ 'feed-snack-button--disabled': snack.quantity < snack.cost }"
+              :disabled="snack.quantity < snack.cost"
+              @tap="feedSnack(snack)"
+            >
+              喂食
+            </button>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+    
     <!-- 创建标签对话框 -->
     <view class="create-tag-modal" v-if="showCreateTagDialog">
       <view class="create-tag-overlay" @tap="cancelCreateTag"></view>
@@ -170,9 +215,9 @@
         </view>
       </view>
     </view>
-    
+
     <!-- 时光模块内容 -->
-    <view class="timeline-content" v-if="showTimelineContent">
+    <view class="timeline-content" v-show="currentTab === 'timeline'">
       <view class="tabs">
         <view 
           class="tab tab--profile" 
@@ -191,9 +236,37 @@
       </view>
       
       <!-- Tab内容 -->
-      <scroll-view class="tab-content" scroll-y="true" enable-back-to-top="true" style="height: 800rpx; max-height: 800rpx; overflow-y: scroll;">
+      <scroll-view class="tab-content" scroll-y="true" enable-back-to-top="true" style="height: calc(100vh - 200rpx); width: 100%; margin-top: 0;">
         <!-- 小鸡档案Tab -->
         <view v-if="activeTimelineTab === 'profile'" class="profile-tab">
+          <!-- 小鸡基本信息 -->
+          <view class="chicken-basic-info">
+            <view class="chicken-info-header">
+              <text class="chicken-nickname">{{ chickenInfo.nickname }}</text>
+              <text class="chicken-level">Lv.{{ chickenInfo.level }}</text>
+            </view>
+            
+            <!-- 经验值进度条 -->
+            <view class="experience-progress">
+              <view class="progress-bar">
+                <view class="progress-fill" :style="{ width: (chickenInfo.expCurrent / chickenInfo.expTotal * 100) + '%' }"></view>
+              </view>
+              <view class="progress-text">{{ chickenInfo.expCurrent }}/{{ chickenInfo.expTotal }}</view>
+            </view>
+            
+            <!-- 基本信息统计 -->
+            <view class="chicken-stats">
+              <view class="stat-item">
+                <text class="stat-label">年龄</text>
+                <text class="stat-value">{{ chickenInfo.days }}天</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label">体重</text>
+                <text class="stat-value">{{ chickenInfo.weight }}kg</text>
+              </view>
+            </view>
+          </view>
+          
           <view class="profile-section">
             <view class="section-header">
               <text class="section-title">等级成长曲线</text>
@@ -219,100 +292,241 @@
               </view>
             </view>
           </view>
-          
-          <view class="profile-section">
-            <view class="section-header">
-              <text class="section-title">解锁的小鸡皮肤/技能</text>
-            </view>
-            <view class="unlocked-items">
-              <view class="item">
-                <text class="item-name">默认皮肤</text>
-                <text class="item-status">已解锁</text>
-              </view>
-              <view class="item">
-                <text class="item-name">金色皮肤</text>
-                <text class="item-status">未解锁</text>
-              </view>
-              <view class="item">
-                <text class="item-name">飞行技能</text>
-                <text class="item-status">未解锁</text>
-              </view>
-            </view>
-          </view>
         </view>
         
         <!-- 时光日程Tab -->
         <view v-if="activeTimelineTab === 'schedule'" class="schedule-tab">
-          <view class="calendar-section">
-            <view class="calendar-header">
-              <text class="month-year">2023年12月</text>
-              <view class="nav-buttons">
-                <text class="nav-button">‹</text>
-                <text class="nav-button">›</text>
+          <!-- 倒数日记录区 -->
+          <view class="countdown-section">
+            <text class="section-title">倒数日</text>
+            <view class="record-card">
+              <view class="icon-area">
+                <view class="couple-icon"></view>
               </view>
-            </view>
-            <view class="calendar-grid">
-              <!-- 日历头部 -->
-              <view class="weekdays">
-                <text class="weekday">日</text>
-                <text class="weekday">一</text>
-                <text class="weekday">二</text>
-                <text class="weekday">三</text>
-                <text class="weekday">四</text>
-                <text class="weekday">五</text>
-                <text class="weekday">六</text>
-              </view>
-              <!-- 日历日期 -->
-              <view class="dates">
-                <!-- 示例日期，实际应该动态生成 -->
-                <view v-for="day in 31" :key="day" class="date-cell">
-                  <text class="date-number">{{ day }}</text>
-                  <view class="date-indicators">
-                    <view class="indicator indicator--completed"></view>
+              <view class="info-area">
+                <text class="main-text">距离见ta</text>
+                <text class="date-text">2025.12.20 星期六</text>
+                <view class="days-area">
+                  <text class="days-number">0</text>
+                  <view class="days-unit">
+                    <text class="unit-text">DAYS</text>
                   </view>
                 </view>
               </view>
             </view>
           </view>
           
-          <view class="schedule-section">
-            <view class="section-header">
-              <text class="section-title">今日日程</text>
-            </view>
-            <view class="schedule-list">
-              <view class="schedule-item">
-                <view class="schedule-info">
-                  <text class="schedule-time">09:00 - 10:30</text>
-                  <text class="schedule-title">阅读专注</text>
-                </view>
-                <view class="schedule-reward">
-                  <text class="reward-text">+10金币</text>
-                </view>
+          <!-- 分割线 -->
+          <view class="divider"></view>
+          
+          <!-- 纪念日记录区 -->
+          <view class="memorial-section">
+            <text class="section-title">纪念日</text>
+            <view class="record-card">
+              <view class="icon-area">
+                <view class="smiley-icon"></view>
               </view>
-              <view class="schedule-item">
-                <view class="schedule-info">
-                  <text class="schedule-time">14:00 - 15:30</text>
-                  <text class="schedule-title">工作专注</text>
-                </view>
-                <view class="schedule-reward">
-                  <text class="reward-text">+10金币</text>
+              <view class="info-area">
+                <text class="main-text">与ta相识</text>
+                <text class="date-text">2025.11.30 星期日</text>
+                <view class="days-area">
+                  <text class="days-number">20</text>
+                  <view class="days-unit">
+                    <text class="unit-text">DAYS</text>
+                  </view>
                 </view>
               </view>
             </view>
           </view>
           
-          <view class="rules-section">
-            <view class="section-header">
-              <text class="section-title">规则说明</text>
-            </view>
-            <view class="rules-content">
-              <text class="rule-text">完成日程得金币，助力宠物升级</text>
-            </view>
+          <!-- 添加按钮 -->
+          <view class="add-button" @tap="goToCreatePage">
+            <text class="plus-icon">+</text>
           </view>
         </view>
       </scroll-view>
     </view>
-    
+
+    <!-- 统计模块内容 -->
+    <scroll-view 
+      class="statistics-content" 
+      v-show="currentTab === 'statistics'" 
+      scroll-y="true"
+      enable-back-to-top="true"
+      show-scrollbar="false"
+    >
+      <!-- 页面标题 -->
+      <view class="page-header">
+        <text class="page-title">统计</text>
+      </view>
+      
+      <!-- 状态概览区 -->
+      <view class="status-overview">
+        <!-- 今日专注 & 累计专注 -->
+        <view class="focus-cards">
+          <view class="focus-card focus-card--today">
+            <text class="card-label">今日专注</text>
+            <text class="card-value">75</text>
+            <text class="card-unit">分钟</text>
+          </view>
+          <view class="focus-card focus-card--total">
+            <text class="card-label">累计专注</text>
+            <text class="card-value">120</text>
+            <text class="card-unit">分钟</text>
+          </view>
+        </view>
+        
+        <!-- 今日失败 & 累计失败 -->
+        <view class="failure-section">
+          <view class="failure-item">
+            <text class="failure-label">今日失败</text>
+            <text class="failure-value">2</text>
+          </view>
+          <view class="failure-item">
+            <text class="failure-label">累计失败</text>
+            <text class="failure-value failure-value--highlight">15</text>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 近期专注速览（柱状图模块） -->
+      <view class="recent-focus-section">
+        <view class="section-header">
+          <text class="section-title">近期专注速览</text>
+          <view class="dimension-toggle" @tap="toggleDimension">
+            <text class="dimension-text">时长</text>
+            <text class="arrow-icon">▼</text>
+          </view>
+        </view>
+        <text class="section-subtitle">累计时长1分</text>
+        
+        <!-- 柱状图 -->
+        <view class="bar-chart">
+          <view class="chart-container">
+            <!-- Y轴刻度 -->
+            <view class="y-axis">
+              <text class="y-label">60</text>
+              <text class="y-label">45</text>
+              <text class="y-label">30</text>
+              <text class="y-label">15</text>
+              <text class="y-label">0</text>
+            </view>
+            
+            <!-- 图表区域 -->
+            <view class="chart-area">
+              <!-- 红色虚线（平均时长/目标时长） -->
+              <view class="average-line"></view>
+              
+              <!-- 柱子 -->
+              <view class="bars-container">
+                <view 
+                  v-for="(bar, index) in barData" 
+                  :key="index"
+                  class="bar-wrapper"
+                  @tap="showDetail(bar)"
+                >
+                  <view 
+                    class="bar" 
+                    :style="{ height: bar.height + 'rpx' }"
+                  ></view>
+                  <view class="bird-icon"></view>
+                  <text class="bar-date">{{ bar.date }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 标签分布（环形图+日期导航） -->
+      <view class="tag-distribution-section">
+        <!-- 日期导航栏 -->
+        <view class="date-navigation">
+          <view class="nav-button nav-button--prev" @tap="prevDay">
+            <text class="nav-arrow">‹</text>
+          </view>
+          <text class="current-date">12.20 周六</text>
+          <view class="nav-button nav-button--next" @tap="nextDay">
+            <text class="nav-arrow">›</text>
+          </view>
+        </view>
+        
+        <!-- 切换按钮 -->
+        <view class="dimension-switch">
+          <view 
+            class="switch-button" 
+            :class="{ 'switch-button--active': currentDimension === 'duration' }"
+            @tap="switchDimension('duration')"
+          >
+            <text class="switch-text">时长</text>
+          </view>
+          <view 
+            class="switch-button" 
+            :class="{ 'switch-button--active': currentDimension === 'count' }"
+            @tap="switchDimension('count')"
+          >
+            <text class="switch-text">次数</text>
+          </view>
+        </view>
+        
+        <!-- 环形图 -->
+        <view class="ring-chart-container">
+          <view class="ring-chart">
+            <!-- 中心文本 -->
+            <view class="chart-center">
+              <text class="center-value">1h 20m</text>
+              <text class="center-label">当日总专注时长</text>
+            </view>
+            
+            <!-- 扇区 -->
+            <view class="chart-sectors">
+              <!-- 这里简化展示，实际应该根据数据动态生成 -->
+              <view class="sector sector--focus"></view>
+              <view class="sector sector--study"></view>
+              <view class="sector sector--reading"></view>
+              <view class="sector sector--fitness"></view>
+              <view class="sector sector--work"></view>
+            </view>
+          </view>
+          
+          <!-- 扇区标签 -->
+          <view class="sector-labels">
+            <view class="label-item">
+              <view class="label-color label-color--focus"></view>
+              <text class="label-text">专注</text>
+              <text class="label-value">0分</text>
+            </view>
+            <view class="label-item">
+              <view class="label-color label-color--study"></view>
+              <text class="label-text">学习</text>
+              <text class="label-value">0分</text>
+            </view>
+            <view class="label-item">
+              <view class="label-color label-color--reading"></view>
+              <text class="label-text">阅读</text>
+              <text class="label-value">0分</text>
+            </view>
+            <view class="label-item">
+              <view class="label-color label-color--fitness"></view>
+              <text class="label-text">健身</text>
+              <text class="label-value">0分</text>
+            </view>
+            <view class="label-item">
+              <view class="label-color label-color--work"></view>
+              <text class="label-text">工作</text>
+              <text class="label-value">0分</text>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 按天查看 -->
+        <view class="daily-view-toggle" @tap="toggleDailyView">
+          <text class="toggle-text">按天查看</text>
+          <text class="toggle-arrow">›</text>
+        </view>
+      </view>
+    </scroll-view>
+
   <view class="chicken-info-modal" v-if="showChickenInfoModal">
     <view class="chicken-info-overlay" @tap="closeChickenInfoModal"></view>
     <view class="chicken-info-container">
@@ -366,7 +580,7 @@ import Matter from 'matter-js'
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
-const FRAME_INTERVAL = 1000 / 60
+const FRAME_INTERVAL = 1000 / 60  // 使用推荐的60fps以避免警告
 const CHICK_RADIUS = 35
 
 const requestFrame =
@@ -390,12 +604,25 @@ export default {
       // 小鸡信息
       chickenInfo: {
         nickname: '小咕',
-        level: 5,
-        days: 30,
-        coins: 128
+        level: 13,
+        days: 24,
+        weight: 1.0,
+        expCurrent: 715,
+        expTotal: 1000
       },
       showChickenInfoModal: false, // 是否显示小鸡信息弹窗,
+      showFeedModal: false, // 是否显示喂食弹窗
+      // 零食数据
+      snacks: [
+        { name: '三文鱼', type: 'salmon', icon: '🐟', cost: 50, quantity: 34 },
+        { name: '牛排', type: 'steak', icon: '🥩', cost: 50, quantity: 50 },
+        { name: '巧克力', type: 'chocolate', icon: '🍫', cost: 50, quantity: 100 },
+        { name: '烤鸡腿', type: 'chicken', icon: '🍗', cost: 25, quantity: 10 },
+        { name: '布丁', type: 'pudding', icon: '🍮', cost: 25, quantity: 4 },
+        { name: '汉堡', type: 'burger', icon: '🍔', cost: 25, quantity: 5 }
+      ],
       chicks: [],
+      chickBodyMap: {}, // 存储body与chick信息的映射
       activeChickId: null,
       dragSnapshot: null,
       gravityVector: { x: 0, y: 1 },
@@ -411,8 +638,6 @@ export default {
       accelerometerHandler: null,
       currentTab: 'home', // 当前选中的tab
       showTagSelector: false, // 是否显示标签选择器
-      showTimelineContent: false, // 是否显示时光模块内容
-      activeTimelineTab: 'profile', // 时光模块当前选中的tab
       isEditingTags: false, // 是否处于标签编辑模式
       editingTagName: '', // 正在编辑的标签名称
       editingTagIndex: -1, // 正在编辑的标签索引
@@ -435,6 +660,24 @@ export default {
         { name: '健身', color: '#FF9800', selected: false },
         { name: '工作', color: '#F44336', selected: false },
         { name: '专注', color: '#2196F3', selected: false }
+      ],
+      activeTimelineTab: 'profile', // 时光模块当前选中的tab
+      
+      // 统计模块数据
+      currentDimension: 'duration', // 当前维度：duration(时长) 或 count(次数)
+      showDailyView: false, // 是否显示按天查看
+      
+      // 柱状图数据
+      barData: [
+        { date: '12.23', height: 80, value: 30 },
+        { date: '12.24', height: 120, value: 45 },
+        { date: '12.25', height: 60, value: 20 },
+        { date: '12.26', height: 100, value: 35 },
+        { date: '12.27', height: 140, value: 50 },
+        { date: '12.28', height: 90, value: 32 },
+        { date: '12.29', height: 110, value: 40 },
+        { date: '12.30', height: 70, value: 25 },
+        { date: '12.31', height: 130, value: 48 }
       ]
     }
   },
@@ -524,6 +767,7 @@ export default {
       this.engine.world.gravity.x = this.gravityVector.x
       this.engine.world.gravity.y = this.gravityVector.y
       this.engine.world.gravity.scale = 0.003  // 进一步增加重力，让小鸡下落更快
+      this.engine.timing.timeScale = 1.0
       this.chickBodies = this.createChickBodies()
       const bounds = this.createWorldBounds()
       this.dragConstraint = Constraint.create({
@@ -542,6 +786,8 @@ export default {
       // 在屏幕可见区域底部附近分布小鸡
       const startY = this.playgroundHeight * 0.5  // 从屏幕50%高度开始
       const visibleHeight = this.playgroundHeight * 0.4  // 在40%的垂直范围内分布
+      // 重置映射表
+      this.chickBodyMap = {}
       return CHICK_EXPRESSIONS.map((expression, index) => {
         const body = Bodies.circle(
           Math.random() * (this.playgroundWidth - CHICK_RADIUS * 4) + CHICK_RADIUS * 2,
@@ -555,8 +801,12 @@ export default {
             slop: 0.2,
           }
         )
-        body.__id = `chick-${index}`
-        body.__expression = expression
+        // 使用映射表存储chick信息，避免直接在body对象上添加属性
+        const chickId = `chick-${index}`
+        this.chickBodyMap[chickId] = {
+          id: chickId,
+          expression: expression
+        }
         return body
       })
     },
@@ -575,13 +825,20 @@ export default {
     },
     syncChicksFromBodies() {
       if (!this.chickBodies.length) return
-      this.chicks = this.chickBodies.map((body) => ({
-        id: body.__id,
-        expression: body.__expression,
-        x: body.position.x,
-        y: body.position.y,
-        radius: body.circleRadius || CHICK_RADIUS,
-      }))
+      this.chicks = this.chickBodies.map((body) => {
+        // 从映射表中获取chick信息
+        const chickInfo = this.chickBodyMap[`chick-${this.chickBodies.indexOf(body)}`] || {};
+        return {
+          id: chickInfo.id || `chick-${this.chickBodies.indexOf(body)}`,
+          expression: chickInfo.expression || 'calm',
+          x: body.position.x,
+          y: body.position.y,
+          radius: body.circleRadius || CHICK_RADIUS,
+        }
+      })
+      
+      // 减少日志输出频率，避免刷屏
+      // console.log('主页小鸡位置更新:', this.chicks.length, '只小鸡');
     },
     startPhysics() {
       if (!this.engine || this.frameId) return
@@ -626,6 +883,7 @@ export default {
     },
     // 全局触摸开始事件
     handlePlaygroundTouchStart(event) {
+      console.log('开始拖拽主页小鸡');
       if (!this.chickBodies.length) return
       const touch = event.touches && event.touches[0]
       const point = this.getTouchPoint(touch)
@@ -637,7 +895,9 @@ export default {
       
       const body = hits[0]
       body.isDragging = true
-      this.activeChickId = body.__id
+      // 通过chickBodyMap找到对应的chickId
+      const chickIndex = this.chickBodies.indexOf(body);
+      this.activeChickId = `chick-${chickIndex}`
       this.dragSnapshot = {
         lastPoint: point,
         lastTime: Date.now(),
@@ -657,7 +917,9 @@ export default {
       if (!point) return
       
       // 查找正在拖拽的小鸡
-      const body = this.chickBodies.find(b => b.__id === this.activeChickId)
+      const chickInfo = this.chickBodyMap[this.activeChickId];
+      const bodyIndex = Object.keys(this.chickBodyMap).indexOf(this.activeChickId);
+      const body = this.chickBodies[bodyIndex];
       if (!body) return
       
       // 直接设置小鸡的位置
@@ -675,13 +937,19 @@ export default {
       // 阻止默认行为和冒泡
       event.preventDefault()
       event.stopPropagation()
+      
+      // 添加调试信息输出
+      console.log('主页小鸡拖拽中:', point.x, point.y);
     },
     
     // 全局触摸结束事件
     handlePlaygroundTouchEnd(event) {
+      console.log('结束拖拽主页小鸡');
       if (this.activeChickId) {
         // 查找正在拖拽的小鸡
-        const body = this.chickBodies.find(b => b.__id === this.activeChickId)
+        const chickInfo = this.chickBodyMap[this.activeChickId];
+        const bodyIndex = Object.keys(this.chickBodyMap).indexOf(this.activeChickId);
+        const body = this.chickBodies[bodyIndex];
         if (body) {
           body.isDragging = false
           if (this.dragSnapshot && this.dragSnapshot.velocity) {
@@ -767,10 +1035,7 @@ export default {
       this.showChickenInfoModal = false
     },
         
-    // 切换时光模块Tab
-    switchTimelineTab(tab) {
-      this.activeTimelineTab = tab
-    },
+
         
     // 跳转到时光模块
     goToTimeModule() {
@@ -790,18 +1055,16 @@ export default {
     switchTab(tab) {
       this.currentTab = tab
       // 根据tab显示不同内容
-      this.showTimelineContent = tab === 'timeline'
       // 根据tab跳转到不同页面
       switch (tab) {
         case 'home':
           // 首页，当前页面
           break
+        case 'timeline':
+          // 时光模块，当前页面
+          break
         case 'statistics':
-          // 跳转到统计页面
-          uni.showToast({
-            title: '统计页面即将开放',
-            icon: 'none',
-          })
+          // 统计模块，当前页面
           break
         case 'profile':
           // 跳转到我的页面
@@ -962,6 +1225,115 @@ export default {
     cancelCreateTag() {
       this.newTagName = ''
       this.showCreateTagDialog = false
+    },
+    
+    // 切换时光模块Tab
+    switchTimelineTab(tab) {
+      this.activeTimelineTab = tab
+    },
+    
+    // 跳转到创建页面
+    goToCreatePage() {
+      uni.navigateTo({
+        url: '/pages/create-time/index'
+      })
+    },
+    
+    // 喂食小鸡
+    feedChicken() {
+      this.showFeedModal = true
+    },
+    
+    // 关闭喂食弹窗
+    closeFeedModal() {
+      this.showFeedModal = false
+    },
+    
+    // 喂食零食
+    feedSnack(snack) {
+      if (snack.quantity < snack.cost) {
+        uni.showToast({
+          title: `道具不足，无法喂食${snack.name}`,
+          icon: 'none'
+        })
+        return
+      }
+      
+      // 减少道具数量
+      snack.quantity -= snack.cost
+      
+      // 增加小鸡经验值
+      this.chickenInfo.expCurrent += snack.cost
+      
+      uni.showToast({
+        title: `喂食${snack.name}成功，获得${snack.cost}点经验值`,
+        icon: 'none'
+      })
+      
+      // 检查是否升级
+      if (this.chickenInfo.expCurrent >= this.chickenInfo.expTotal) {
+        this.chickenInfo.level++
+        this.chickenInfo.expCurrent -= this.chickenInfo.expTotal
+        this.chickenInfo.expTotal = Math.floor(this.chickenInfo.expTotal * 1.2) // 下一级经验需求增加20%
+        
+        uni.showToast({
+          title: `恭喜！小鸡升级到Lv.${this.chickenInfo.level}！`,
+          icon: 'none'
+        })
+      }
+    },
+    
+    // 统计模块方法
+    
+    // 切换维度（时长/次数）
+    toggleDimension() {
+      // 这里可以实现维度切换逻辑
+      uni.showToast({
+        title: '切换维度',
+        icon: 'none'
+      })
+    },
+    
+    // 显示柱子详情
+    showDetail(bar) {
+      uni.showToast({
+        title: `日期: ${bar.date}, 时长: ${bar.value}分钟`,
+        icon: 'none'
+      })
+    },
+    
+    // 切换日期（前一天）
+    prevDay() {
+      uni.showToast({
+        title: '切换到前一天',
+        icon: 'none'
+      })
+    },
+    
+    // 切换日期（后一天）
+    nextDay() {
+      uni.showToast({
+        title: '切换到后一天',
+        icon: 'none'
+      })
+    },
+    
+    // 切换维度（时长/次数）
+    switchDimension(dimension) {
+      this.currentDimension = dimension
+      uni.showToast({
+        title: `切换到${dimension === 'duration' ? '时长' : '次数'}维度`,
+        icon: 'none'
+      })
+    },
+    
+    // 切换按天查看
+    toggleDailyView() {
+      this.showDailyView = !this.showDailyView
+      uni.showToast({
+        title: this.showDailyView ? '展开按天查看' : '收起按天查看',
+        icon: 'none'
+      })
     }
   },
 }
@@ -972,11 +1344,10 @@ export default {
 .screen {
   height: 100vh;
   min-height: 100vh;
-  padding: 48rpx 48rpx 220rpx; /* 增加底部padding以避免被底部导航栏遮挡 */
+  padding: 0 0 100rpx; /* 只保留底部padding以避免被底部导航栏遮挡 */
   background: linear-gradient(180deg, #fff8f0 0%, #ffe4c5 50%, #ffd7b0 100%);
   display: flex;
   flex-direction: column;
-  align-items: center;
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
@@ -1011,6 +1382,194 @@ export default {
   transform-origin: top left;
 }
 
+/* 喂食按钮 */
+.feed-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: 2rpx solid #FF9800;
+  border-radius: 40rpx;
+  padding: 15rpx 30rpx;
+  margin-top: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.feed-button:active {
+  transform: scale(0.95);
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+.feed-icon {
+  font-size: 32rpx;
+  margin-right: 10rpx;
+}
+
+.feed-text {
+  font-size: 28rpx;
+  color: #FF9800;
+  font-weight: bold;
+}
+
+/* 喂食弹窗 */
+.feed-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1001;
+}
+
+.feed-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.feed-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+
+.feed-header {
+  display: flex;
+  align-items: center;
+  height: 80rpx;
+  background-color: #ffffff;
+  border-bottom: 1rpx solid #e0e0e0;
+}
+
+.back-button {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.back-icon {
+  font-size: 40rpx;
+  color: #333333;
+}
+
+.feed-title {
+  flex: 1;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.snacks-list {
+  max-height: 600rpx;
+}
+
+.snack-item {
+  display: flex;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.snack-item:last-child {
+  border-bottom: none;
+}
+
+.snack-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  margin-right: 20rpx;
+  position: relative;
+}
+
+.snack-icon--salmon {
+  background-color: #FFA500;
+}
+
+.snack-icon--steak {
+  background-color: #FF0000;
+}
+
+.snack-icon--chocolate {
+  background-color: #8B4513;
+}
+
+.snack-icon--chicken {
+  background-color: #FFA500;
+}
+
+.snack-icon--pudding {
+  background-color: #FFD700;
+}
+
+.snack-icon--burger {
+  background-color: #8B4513;
+}
+
+.snack-exp {
+  position: absolute;
+  bottom: -10rpx;
+  right: -10rpx;
+  width: 36rpx;
+  height: 36rpx;
+  background-color: #FF9800;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  color: #ffffff;
+}
+
+.snack-info {
+  flex: 1;
+}
+
+.snack-name {
+  font-size: 32rpx;
+  color: #333333;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.snack-quantity {
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.feed-snack-button {
+  width: 120rpx;
+  height: 60rpx;
+  background-color: #cccccc;
+  color: #ffffff;
+  border-radius: 30rpx;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feed-snack-button--disabled {
+  background-color: #e0e0e0;
+  color: #999999;
+}
+
 .hero-name {
   margin-top: 24rpx;
   font-size: 56rpx;
@@ -1031,7 +1590,7 @@ export default {
   margin-top: 460rpx;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch; /* 修改为stretch以适应内容宽度 */
   gap: 32rpx;
   transition: margin-top 0.6s ease;
 }
@@ -2221,7 +2780,10 @@ export default {
 /* 时光模块样式 */
 .timeline-content {
   flex: 1;
-  padding: 30rpx;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  margin-top: 0 !important;
 }
 
 .timeline-content .tabs {
@@ -2229,7 +2791,10 @@ export default {
   width: 100%;
   background-color: #ffffff;
   border-bottom: 1rpx solid #e0e0e0;
-  margin-bottom: 30rpx;
+  margin-bottom: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .timeline-content .tab {
@@ -2269,11 +2834,14 @@ export default {
 
 .timeline-content .tab-content {
   /* 样式已移至内联样式 */
+  margin-top: 0 !important;
 }
 
 .timeline-content .profile-tab,
 .timeline-content .schedule-tab {
   padding: 30rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .timeline-content .profile-section,
@@ -2281,10 +2849,90 @@ export default {
 .timeline-content .calendar-section,
 .timeline-content .rules-section {
   background-color: #ffffff;
-  border-radius: 20rpx;
-  padding: 30rpx;
-  margin-bottom: 30rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  border-radius: 0;
+  padding: 30rpx 48rpx; /* 保持左右padding以匹配页面整体样式 */
+  margin-bottom: 0;
+  box-shadow: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 小鸡基本信息 */
+.timeline-content .chicken-basic-info {
+  background-color: #ffffff;
+  padding: 30rpx 48rpx;
+  margin-bottom: 20rpx;
+  border-bottom: 1rpx solid #e0e0e0;
+}
+
+.timeline-content .chicken-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20rpx;
+}
+
+.timeline-content .chicken-nickname {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 10rpx;
+}
+
+.timeline-content .chicken-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+
+.timeline-content .stat-item {
+  text-align: center;
+}
+
+.timeline-content .stat-label {
+  font-size: 24rpx;
+  color: #666666;
+  margin-bottom: 10rpx;
+}
+
+.timeline-content .stat-value {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+/* 等级显示 */
+.timeline-content .chicken-level {
+  font-size: 28rpx;
+  color: #666666;
+  margin-left: 10rpx;
+}
+
+/* 经验值进度条 */
+.experience-progress {
+  margin: 20rpx 0;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12rpx;
+  background-color: #e0e0e0;
+  border-radius: 6rpx;
+  overflow: hidden;
+  margin-bottom: 10rpx;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #4CAF50;
+  border-radius: 6rpx;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 24rpx;
+  color: #666666;
+  text-align: right;
 }
 
 .timeline-content .section-header {
@@ -2331,161 +2979,599 @@ export default {
   color: #666666;
 }
 
-.timeline-content .unlocked-items {
+/* 时光日程样式 */
+.schedule-section {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
 }
 
-.timeline-content .item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20rpx;
-  background-color: #f9f9f9;
-  border-radius: 10rpx;
-}
-
-.timeline-content .item-name {
+.section-title {
   font-size: 28rpx;
-  color: #333333;
-}
-
-.timeline-content .item-status {
-  font-size: 24rpx;
+  font-weight: normal;
   color: #666666;
+  margin: 20rpx 48rpx; /* 保持左右margin以匹配页面整体样式 */
+  display: block;
+  text-align: left;
 }
 
-.timeline-content .item-status:not(:first-child) {
-  color: #ff9800;
-}
-
-.timeline-content .calendar-header {
+.record-card {
   display: flex;
-  justify-content: space-between;
+  background-color: #ffffff;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 24rpx 48rpx; /* 保持左右padding以匹配页面整体样式 */
+  margin-bottom: 0;
+  border-bottom: 1rpx solid #EEEEEE;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.icon-area {
+  margin-right: 24rpx;
+}
+
+.couple-icon {
+  width: 64rpx;
+  height: 64rpx;
+  background-color: #FF6B8B;
+  border-radius: 50%;
+  display: flex;
   align-items: center;
+  justify-content: center;
+}
+
+.smiley-icon {
+  width: 64rpx;
+  height: 64rpx;
+  background-color: #4ECDC4;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info-area {
+  flex: 1;
+}
+
+.main-text {
+  font-size: 32rpx;
+  font-weight: normal;
+  color: #333333;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.date-text {
+  font-size: 24rpx;
+  font-weight: normal;
+  color: #999999;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.days-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.days-number {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #FF6B8B;
+}
+
+.memorial-section .days-number {
+  color: #4ECDC4;
+}
+
+.days-unit {
+  text-align: right;
+}
+
+.unit-text {
+  font-size: 24rpx;
+  font-weight: normal;
+  color: #999999;
+}
+
+.divider {
+  height: 1rpx;
+  background-color: #EEEEEE;
+  margin: 20rpx 0;
+  width: calc(100% + 96rpx); /* 横跨整个页面宽度 */
+  margin-left: -48rpx; /* 调整位置以对齐页面边缘 */
+}
+
+.add-button {
+  position: fixed;
+  right: 40rpx;
+  bottom: 140rpx; /* 考虑底部导航栏的高度 */
+  width: 96rpx;
+  height: 96rpx;
+  background-color: #333333;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.add-button:active {
+  background-color: #000000;
+}
+
+.plus-icon {
+  font-size: 40rpx;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+/* 统计模块样式 */
+.statistics-content {
+  height: calc(100vh - var(--window-bottom) - var(--window-top));
+  padding: 20rpx;
+  box-sizing: border-box;
+  padding-bottom: 120rpx; /* 为底部导航栏留出空间 */
+}
+
+/* 确保内容可以完全滚动 */
+.statistics-content ::v-deep .uni-scroll-view-content {
+  padding-bottom: 40rpx;
+}
+
+/* 页面标题 */
+.page-header {
   margin-bottom: 30rpx;
 }
 
-.timeline-content .month-year {
+.page-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+/* 状态概览区 */
+.status-overview {
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 专注卡片 */
+.focus-cards {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.focus-card {
+  flex: 1;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.focus-card--today {
+  background-color: #000000;
+}
+
+.focus-card--total {
+  background-color: #ffffff;
+  border: 1rpx solid #000000;
+}
+
+.card-label {
+  font-size: 28rpx;
+  margin-bottom: 10rpx;
+}
+
+.focus-card--today .card-label {
+  color: #ffffff;
+}
+
+.focus-card--total .card-label {
+  color: #000000;
+}
+
+.card-value {
+  font-size: 48rpx;
+  font-weight: bold;
+  margin-bottom: 5rpx;
+}
+
+.focus-card--today .card-value {
+  color: #ffffff;
+}
+
+.focus-card--total .card-value {
+  color: #000000;
+}
+
+.card-unit {
+  font-size: 24rpx;
+}
+
+.focus-card--today .card-unit {
+  color: #cccccc;
+}
+
+.focus-card--total .card-unit {
+  color: #666666;
+}
+
+/* 失败统计 */
+.failure-section {
+  display: flex;
+  justify-content: space-between;
+}
+
+.failure-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.failure-label {
+  font-size: 28rpx;
+  color: #333333;
+  margin-bottom: 10rpx;
+}
+
+.failure-value {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.failure-value--highlight {
+  color: #ff0000;
+}
+
+/* 近期专注速览 */
+.recent-focus-section {
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10rpx;
+}
+
+.section-title {
   font-size: 32rpx;
   font-weight: bold;
   color: #333333;
 }
 
-.timeline-content .nav-buttons {
+.dimension-toggle {
   display: flex;
-  gap: 20rpx;
+  align-items: center;
+  padding: 10rpx 20rpx;
+  background-color: #f0f0f0;
+  border-radius: 8rpx;
 }
 
-.timeline-content .nav-button {
-  font-size: 36rpx;
-  color: #666666;
-  padding: 10rpx;
+.dimension-text {
+  font-size: 28rpx;
+  color: #333333;
+  margin-right: 10rpx;
 }
 
-.timeline-content .weekdays {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 20rpx;
-}
-
-.timeline-content .weekday {
-  flex: 1;
-  text-align: center;
+.arrow-icon {
   font-size: 24rpx;
   color: #666666;
 }
 
-.timeline-content .dates {
-  display: flex;
-  flex-wrap: wrap;
+.section-subtitle {
+  font-size: 24rpx;
+  color: #999999;
+  margin-bottom: 30rpx;
 }
 
-.timeline-content .date-cell {
-  width: calc(100% / 7);
-  height: 80rpx;
+/* 柱状图 */
+.bar-chart {
+  height: 400rpx;
+}
+
+.chart-container {
+  display: flex;
+  height: 100%;
+}
+
+.y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 60rpx;
+  margin-right: 20rpx;
+}
+
+.y-label {
+  font-size: 20rpx;
+  color: #999999;
+}
+
+.chart-area {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.average-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2rpx;
+  border-top: 2rpx dashed #ff0000;
+  z-index: 1;
+}
+
+.bars-container {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding-top: 20rpx;
+}
+
+.bar-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   position: relative;
 }
 
-.timeline-content .date-number {
+.bar {
+  width: 40rpx;
+  background-color: #000000;
+  border-radius: 8rpx 8rpx 0 0;
+  margin-bottom: 10rpx;
+}
+
+.bird-icon {
+  width: 30rpx;
+  height: 30rpx;
+  background-color: #FF6B8B;
+  border-radius: 50%;
+  margin-bottom: 10rpx;
+  position: relative;
+}
+
+.bird-icon::before {
+  content: '';
+  position: absolute;
+  width: 10rpx;
+  height: 10rpx;
+  background-color: #000000;
+  border-radius: 50%;
+  top: 8rpx;
+  left: 8rpx;
+}
+
+.bar-date {
+  font-size: 20rpx;
+  color: #666666;
+}
+
+/* 标签分布 */
+.tag-distribution-section {
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 日期导航 */
+.date-navigation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.nav-button {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f0f0;
+  border-radius: 50%;
+  margin: 0 20rpx;
+}
+
+.nav-arrow {
+  font-size: 36rpx;
+  color: #333333;
+}
+
+.current-date {
+  font-size: 28rpx;
+  color: #333333;
+  font-weight: bold;
+}
+
+/* 维度切换 */
+.dimension-switch {
+  display: flex;
+  justify-content: center;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.switch-button {
+  padding: 15rpx 30rpx;
+  border-radius: 8rpx;
+  background-color: #f0f0f0;
+}
+
+.switch-button--active {
+  background-color: #e0e0e0;
+}
+
+.switch-text {
   font-size: 28rpx;
   color: #333333;
 }
 
-.timeline-content .date-indicators {
-  position: absolute;
-  bottom: 10rpx;
+/* 环形图 */
+.ring-chart-container {
   display: flex;
+  margin-bottom: 30rpx;
 }
 
-.timeline-content .indicator {
-  width: 12rpx;
-  height: 12rpx;
+.ring-chart {
+  width: 300rpx;
+  height: 300rpx;
+  position: relative;
+  margin-right: 40rpx;
+}
+
+.chart-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.center-value {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.center-label {
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.chart-sectors {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.sector {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  background-color: #e0e0e0;
 }
 
-.timeline-content .indicator--completed {
+.sector--focus {
+  clip-path: polygon(50% 50%, 50% 0%, 80% 20%);
   background-color: #4CAF50;
 }
 
-.timeline-content .schedule-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20rpx;
+.sector--study {
+  clip-path: polygon(50% 50%, 80% 20%, 100% 50%);
+  background-color: #2196F3;
 }
 
-.timeline-content .schedule-item {
+.sector--reading {
+  clip-path: polygon(50% 50%, 100% 50%, 80% 80%);
+  background-color: #FF9800;
+}
+
+.sector--fitness {
+  clip-path: polygon(50% 50%, 80% 80%, 50% 100%);
+  background-color: #9C27B0;
+}
+
+.sector--work {
+  clip-path: polygon(50% 50%, 50% 100%, 20% 80%);
+  background-color: #F44336;
+}
+
+/* 扇区标签 */
+.sector-labels {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.label-item {
+  display: flex;
+  align-items: center;
+}
+
+.label-color {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 4rpx;
+  margin-right: 15rpx;
+}
+
+.label-color--focus {
+  background-color: #4CAF50;
+}
+
+.label-color--study {
+  background-color: #2196F3;
+}
+
+.label-color--reading {
+  background-color: #FF9800;
+}
+
+.label-color--fitness {
+  background-color: #9C27B0;
+}
+
+.label-color--work {
+  background-color: #F44336;
+}
+
+.label-text {
+  font-size: 28rpx;
+  color: #333333;
+  flex: 1;
+}
+
+.label-value {
+  font-size: 28rpx;
+  color: #666666;
+}
+
+/* 按天查看 */
+.daily-view-toggle {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20rpx;
-  background-color: #f9f9f9;
-  border-radius: 10rpx;
+  background-color: #f0f0f0;
+  border-radius: 12rpx;
 }
 
-.timeline-content .schedule-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.timeline-content .schedule-time {
-  font-size: 24rpx;
-  color: #666666;
-  margin-bottom: 5rpx;
-}
-
-.timeline-content .schedule-title {
+.toggle-text {
   font-size: 28rpx;
   color: #333333;
 }
 
-.timeline-content .schedule-reward {
-  background-color: #FFF3E0;
-  padding: 10rpx 20rpx;
-  border-radius: 20rpx;
+.toggle-arrow {
+  font-size: 36rpx;
+  color: #666666;
 }
 
-.timeline-content .reward-text {
-  font-size: 24rpx;
-  color: #FF9800;
-  font-weight: bold;
-}
-
-.timeline-content .rules-content {
-  padding: 20rpx;
-  background-color: #E3F2FD;
-  border-radius: 10rpx;
-}
-
-.timeline-content .rule-text {
-  font-size: 28rpx;
-  color: #1976D2;
-}
 </style>
 

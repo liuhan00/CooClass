@@ -14,6 +14,24 @@
 			}
 		},
 		{
+			"path": "pages/user-info/index",
+			"style": {
+				"navigationBarTitleText": "用户信息"
+			}
+		},
+		{
+			"path": "pages/focused-timer/index",
+			"style": {
+				"navigationBarTitleText": "专注计时"
+			}
+		},
+		{
+			"path": "pages/chicken-dead/index",
+			"style": {
+				"navigationBarTitleText": "小鸡死亡"
+			}
+		},
+		{
 			"path": "pages/test/index",
 			"style": {
 				"navigationBarTitleText": "视频测试"

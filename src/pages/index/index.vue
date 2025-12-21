@@ -552,22 +552,116 @@
       </view>
     </view>
   </view>
+  
+  <!-- 我的页面内容 -->
+  <scroll-view v-if="showProfilePage" class="profile-page" scroll-y="true">
+    <!-- 用户信息区 (Header) -->
+    <view class="user-header">
+      <view class="user-avatar">
+        <image class="avatar-img" src="/static/logo.png" mode="aspectFill"></image>
+      </view>
+      <view class="user-info">
+        <text class="username">用户名</text>
+        <text class="user-id">ID: 123456789</text>
+      </view>
+    </view>
+
+    <!-- 账号设置区块 -->
+    <view class="settings-section">
+      <text class="section-title">账号设置</text>
+      <view class="setting-item">
+        <view class="setting-content">
+          <text class="setting-title">注销账号</text>
+          <text class="setting-desc">会清空您所有的记录, 谨慎处理哦</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="setting-item">
+        <view class="setting-content">
+          <text class="setting-title">退出登录</text>
+          <text class="setting-desc">退出APP, 依然会保留数据</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 支持我们区块 -->
+    <view class="support-section">
+      <text class="section-title">支持我们</text>
+      <view class="support-item">
+        <view class="support-icon">🍊</view>
+        <view class="support-content">
+          <text class="support-title">加群交群</text>
+          <text class="support-desc">一起开始自律吧</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="support-item">
+        <view class="support-icon">❤️</view>
+        <view class="support-content">
+          <text class="support-title">给我们评分</text>
+          <text class="support-desc">小小的鼓励一下我们</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="support-item">
+        <view class="support-icon">✨</view>
+        <view class="support-content">
+          <text class="support-title">新功能许愿</text>
+          <text class="support-desc">任何愿望都可以告诉我们, 说不定就会实现呢</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="support-item">
+        <view class="support-icon">🍎</view>
+        <view class="support-content">
+          <text class="support-title">和朋友分享</text>
+          <text class="support-desc">坚持的道路上多一个人一起努力</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 更多区块 -->
+    <view class="more-section">
+      <text class="section-title">更多</text>
+      <view class="more-item">
+        <view class="more-content">
+          <text class="more-title">联系我们</text>
+          <text class="more-desc">您可以通过客服邮箱联系我们</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="more-item">
+        <view class="more-content">
+          <text class="more-title">用户协议</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="more-item">
+        <view class="more-content">
+          <text class="more-title">隐私政策</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+  </scroll-view>
 
     <!-- 底部导航栏 -->
     <view class="tab-bar">
-      <view class="tab-item tab-item--active" @tap="switchTab('home')">
+      <view class="tab-item" :class="{'tab-item--active': currentTab === 'home'}" @tap="switchTab('home')">
         <image class="tab-icon" src="/static/chiken.png"></image>
         <text class="tab-text">首页</text>
       </view>
-      <view class="tab-item" @tap="switchTab('statistics')">
+      <view class="tab-item" :class="{'tab-item--active': currentTab === 'statistics'}" @tap="switchTab('statistics')">
         <image class="tab-icon" src="/static/statistics.png"></image>
         <text class="tab-text">统计</text>
       </view>
-      <view class="tab-item" @tap="switchTab('timeline')">
+      <view class="tab-item" :class="{'tab-item--active': currentTab === 'timeline'}" @tap="switchTab('timeline')">
         <image class="tab-icon" src="/static/times.png"></image>
         <text class="tab-text">时光</text>
       </view>
-      <view class="tab-item" @tap="switchTab('profile')">
+      <view class="tab-item" :class="{'tab-item--active': currentTab === 'profile'}" @tap="switchTab('profile')">
         <image class="tab-icon" src="/static/mine.png"></image>
         <text class="tab-text">我的</text>
       </view>
@@ -637,6 +731,7 @@ export default {
       hasEntered: false,
       accelerometerHandler: null,
       currentTab: 'home', // 当前选中的tab
+      showProfilePage: false, // 是否显示我的页面
       showTagSelector: false, // 是否显示标签选择器
       isEditingTags: false, // 是否处于标签编辑模式
       editingTagName: '', // 正在编辑的标签名称
@@ -1045,9 +1140,13 @@ export default {
     },
 
     handleStartFocus() {
-      uni.showToast({
-        title: '开始专注',
-        icon: 'none',
+      // 跳转到专注计时页面，传递当前设置的专注时长
+      // 将 HH:MM 格式转换为秒数
+      const timeParts = this.focusDuration.split(':');
+      const durationInSeconds = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
+      
+      uni.navigateTo({
+        url: `/pages/focused-timer/index?duration=${durationInSeconds}&from=home`
       })
     },
     
@@ -1055,23 +1154,22 @@ export default {
     switchTab(tab) {
       this.currentTab = tab
       // 根据tab显示不同内容
-      // 根据tab跳转到不同页面
       switch (tab) {
         case 'home':
           // 首页，当前页面
+          this.showProfilePage = false
           break
         case 'timeline':
           // 时光模块，当前页面
+          this.showProfilePage = false
           break
         case 'statistics':
           // 统计模块，当前页面
+          this.showProfilePage = false
           break
         case 'profile':
-          // 跳转到我的页面
-          uni.showToast({
-            title: '我的页面即将开放',
-            icon: 'none',
-          })
+          // 显示我的页面
+          this.showProfilePage = true
           break
       }
     },
@@ -3571,6 +3669,139 @@ export default {
 .toggle-arrow {
   font-size: 36rpx;
   color: #666666;
+}
+
+/* 我的页面样式 */
+.profile-page {
+  padding: 30rpx;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+/* 用户信息区 */
+.user-header {
+  display: flex;
+  align-items: center;
+  padding: 40rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.user-avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-right: 30rpx;
+  border: 4rpx solid rgba(255, 255, 255, 0.3);
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.username {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 10rpx;
+}
+
+.user-id {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: normal;
+}
+
+/* 区块样式 */
+.settings-section,
+.support-section,
+.more-section {
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.settings-section {
+  margin-top: 20rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  color: #333333;
+  font-weight: normal;
+  margin-bottom: 30rpx;
+  display: block;
+}
+
+/* 设置项样式 */
+.setting-item,
+.support-item,
+.more-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.setting-item:last-child,
+.support-item:last-child,
+.more-item:last-child {
+  border-bottom: none;
+}
+
+.setting-content,
+.support-content,
+.more-content {
+  flex: 1;
+}
+
+.setting-title,
+.support-title,
+.more-title {
+  font-size: 30rpx;
+  color: #333333;
+  font-weight: bold;
+  margin-bottom: 10rpx;
+  display: block;
+}
+
+.setting-desc,
+.support-desc,
+.more-desc {
+  font-size: 26rpx;
+  color: #999999;
+  font-weight: normal;
+}
+
+.arrow {
+  color: #cccccc;
+  font-size: 32rpx;
+  margin-left: 20rpx;
+}
+
+/* 支持我们项特殊样式 */
+.support-icon {
+  font-size: 36rpx;
+  margin-right: 20rpx;
+  width: 60rpx;
+}
+
+/* 特殊处理注销账号项 */
+.setting-item:first-child .setting-title {
+  color: #ff4757;
 }
 
 </style>

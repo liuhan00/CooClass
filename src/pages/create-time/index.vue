@@ -68,17 +68,15 @@
       
       <!-- 标签选择区 -->
       <text class="form-label">标签选择</text>
-      <view class="icon-grid">
+      <view class="tag-grid">
         <view 
           v-for="(icon, index) in iconOptions" 
           :key="index"
-          class="icon-item"
-          :class="{ 'icon-item--selected': formData.selectedIcons.includes(icon.id) }"
+          class="tag-item"
+          :class="{ 'tag-item--selected': formData.selectedIcons.includes(icon.id) }"
           @tap="toggleIconSelection(icon.id)"
         >
-          <view class="icon-background">
-            <text class="icon-symbol">{{ icon.symbol }}</text>
-          </view>
+          <text class="tag-text">{{ icon.name }}</text>
         </view>
       </view>
     </view>
@@ -114,18 +112,18 @@ export default {
         { name: '蓝色', value: '#00BBF9' }
       ],
       
-      // 图标选项
+      // 标签选项
       iconOptions: [
-        { id: 'graduation', symbol: '🎓', name: '毕业帽' },
-        { id: 'basketball', symbol: '🏀', name: '篮球' },
-        { id: 'notebook', symbol: '📓', name: '笔记本' },
-        { id: 'cake', symbol: '🎂', name: '蛋糕' },
-        { id: 'heart', symbol: '❤️', name: '爱心' },
-        { id: 'suitcase', symbol: '🧳', name: '旅行箱' },
-        { id: 'book', symbol: '📚', name: '书本' },
-        { id: 'music', symbol: '🎵', name: '音乐符号' },
-        { id: 'star', symbol: '⭐', name: '星星' },
-        { id: 'camera', symbol: '📷', name: '相机' }
+        { id: 'graduation', symbol: '🎓', name: '毕业' },
+        { id: 'birthday', symbol: '🎂', name: '生日' },
+        { id: 'wedding', symbol: '💒', name: '婚礼' },
+        { id: 'travel', symbol: '✈️', name: '旅行' },
+        { id: 'work', symbol: '💼', name: '入职' },
+        { id: 'exam', symbol: '📚', name: '考试' },
+        { id: 'anniversary', symbol: '❤️', name: '纪念日' },
+        { id: 'newyear', symbol: '🎉', name: '新年' },
+        { id: 'vacation', symbol: '🌴', name: '假期' },
+        { id: 'project', symbol: '🚀', name: '项目' }
       ]
     }
   },
@@ -359,44 +357,38 @@ export default {
   background-color: #ffffff;
 }
 
-/* 图标网格 */
-.icon-grid {
+/* 标签网格 */
+.tag-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 24rpx 24rpx;
 }
 
-.icon-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.icon-background {
-  width: 64rpx;
-  height: 64rpx;
+.tag-item {
+  padding: 16rpx;
   background-color: #F0F0F0;
-  border-radius: 50%;
+  border-radius: 12rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12rpx;
+  text-align: center;
 }
 
-.icon-item--selected .icon-background {
+.tag-item--selected {
   background-color: #FF6B8B;
+  color: #ffffff;
 }
 
-.memorial .icon-item--selected .icon-background {
+.memorial .tag-item--selected {
   background-color: #4ECDC4;
 }
 
-.icon-symbol {
-  font-size: 32rpx;
+.tag-text {
+  font-size: 28rpx;
   color: #666666;
 }
 
-.icon-item--selected .icon-symbol {
+.tag-item--selected .tag-text {
   color: #ffffff;
 }
 

@@ -38,12 +38,6 @@
 			}
 		},
 		{
-			"path": "pages/video-test/index",
-			"style": {
-				"navigationBarTitleText": "视频组件测试"
-			}
-		},
-		{
 			"path": "pages/focused-duration-config/index",
 			"style": {
 				"navigationBarTitleText": "专注时长配置"
@@ -61,6 +55,18 @@
 				"navigationBarTitleText": "编辑资料",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/statistics/index",
+			"style": {
+				"navigationBarTitleText": "统计"
+			}
+		},
+		{
+			"path": "pages/time-module/index",
+			"style": {
+				"navigationBarTitleText": "时光"
+			}
 		}
 	],
 	"globalStyle": {
@@ -68,5 +74,37 @@
 		"navigationBarTitleText": "咕咕学时",
 		"navigationBarBackgroundColor": "#FFFFFF",
 		"backgroundColor": "#FFFFFF"
+	},
+	"tabBar": {
+		"color": "#7A7E83",
+		"selectedColor": "#000000",
+		"borderStyle": "black",
+		"backgroundColor": "#ffffff",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"iconPath": "static/chiken.png",
+				"selectedIconPath": "static/chiken.png",
+				"text": "首页"
+			},
+			{
+				"pagePath": "pages/statistics/index",
+				"iconPath": "static/statistics.png",
+				"selectedIconPath": "static/statistics.png",
+				"text": "统计"
+			},
+			{
+				"pagePath": "pages/time-module/index",
+				"iconPath": "static/times.png",
+				"selectedIconPath": "static/times.png",
+				"text": "时光"
+			},
+			{
+				"pagePath": "pages/user-info/index",
+				"iconPath": "static/mine.png",
+				"selectedIconPath": "static/mine.png",
+				"text": "我的"
+			}
+		]
 	}
 }

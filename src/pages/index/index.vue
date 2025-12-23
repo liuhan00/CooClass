@@ -1,6 +1,6 @@
 <template>
   <view class="screen focus-screen" :class="{ 'focus-screen--entered': hasEntered }">
-    <view class="hero-wrapper" v-show="currentTab === 'home'">
+    <view class="hero-wrapper">
       <view class="walker-stage" @tap="openChickenInfoModal">
         <view class="walker">
           <view class="walker-shadow"></view>
@@ -38,7 +38,7 @@
       <text class="hero-tagline">小鸡陪你专注成长</text>
     </view>
 
-    <view class="content-panel" v-show="currentTab === 'home'">
+    <view class="content-panel">
       <view class="top-bar">
         <view class="brand-badge">
           <text class="brand-title">{{ brandName }}</text>
@@ -49,7 +49,7 @@
         </view>
       </view>
 
-      <view class="focus-panel" v-show="currentTab === 'home'">
+      <view class="focus-panel">
         <view class="pill scene-pill" @tap="handleSceneTap">
           <text class="pill-icon">📍</text>
           <text class="pill-text">{{ focusScene }}</text>
@@ -68,7 +68,7 @@
     </view>
 
     <!-- 标签选择弹窗 -->
-    <view class="tag-selector-modal" v-if="showTagSelector" v-show="currentTab === 'home'">
+    <view class="tag-selector-modal" v-if="showTagSelector">
       <view class="tag-selector-overlay" @tap="closeTagSelector"></view>
       <view class="tag-selector-container">
         <view class="tag-selector-header">
@@ -193,7 +193,7 @@
       @touchend="handlePlaygroundTouchEnd"
       @touchcancel="handlePlaygroundTouchEnd"
     >
-      <view class="chick-playground" v-show="currentTab === 'home'">
+      <view class="chick-playground">
         <view class="playground-floor"></view>
         <view
           v-for="chick in chicks"
@@ -216,312 +216,9 @@
       </view>
     </view>
 
-    <!-- 时光模块内容 -->
-    <view class="timeline-content" v-show="currentTab === 'timeline'">
-      <view class="tabs">
-        <view 
-          class="tab tab--profile" 
-          :class="{ 'tab--active': activeTimelineTab === 'profile' }"
-          @tap="switchTimelineTab('profile')"
-        >
-          <text class="tab-text">小鸡档案</text>
-        </view>
-        <view 
-          class="tab tab--schedule" 
-          :class="{ 'tab--active': activeTimelineTab === 'schedule' }"
-          @tap="switchTimelineTab('schedule')"
-        >
-          <text class="tab-text">时光日程</text>
-        </view>
-      </view>
-      
-      <!-- Tab内容 -->
-      <scroll-view class="tab-content" scroll-y="true" enable-back-to-top="true" style="height: calc(100vh - 200rpx); width: 100%; margin-top: 0;">
-        <!-- 小鸡档案Tab -->
-        <view v-if="activeTimelineTab === 'profile'" class="profile-tab">
-          <!-- 小鸡基本信息 -->
-          <view class="chicken-basic-info">
-            <view class="chicken-info-header">
-              <text class="chicken-nickname">{{ chickenInfo.nickname }}</text>
-              <text class="chicken-level">Lv.{{ chickenInfo.level }}</text>
-            </view>
-            
-            <!-- 经验值进度条 -->
-            <view class="experience-progress">
-              <view class="progress-bar">
-                <view class="progress-fill" :style="{ width: (chickenInfo.expCurrent / chickenInfo.expTotal * 100) + '%' }"></view>
-              </view>
-              <view class="progress-text">{{ chickenInfo.expCurrent }}/{{ chickenInfo.expTotal }}</view>
-            </view>
-            
-            <!-- 基本信息统计 -->
-            <view class="chicken-stats">
-              <view class="stat-item">
-                <text class="stat-label">年龄</text>
-                <text class="stat-value">{{ chickenInfo.days }}天</text>
-              </view>
-              <view class="stat-item">
-                <text class="stat-label">体重</text>
-                <text class="stat-value">{{ chickenInfo.weight }}kg</text>
-              </view>
-            </view>
-          </view>
-          
-          <view class="profile-section">
-            <view class="section-header">
-              <text class="section-title">等级成长曲线</text>
-            </view>
-            <view class="growth-chart">
-              <!-- 这里可以放置等级成长曲线图表 -->
-              <text class="chart-placeholder">等级成长曲线图表</text>
-            </view>
-          </view>
-          
-          <view class="profile-section">
-            <view class="section-header">
-              <text class="section-title">累计专注时长</text>
-            </view>
-            <view class="focus-stats">
-              <view class="stat-item">
-                <text class="stat-value">120</text>
-                <text class="stat-label">小时</text>
-              </view>
-              <view class="stat-item">
-                <text class="stat-value">30</text>
-                <text class="stat-label">天</text>
-              </view>
-            </view>
-          </view>
-        </view>
-        
-        <!-- 时光日程Tab -->
-        <view v-if="activeTimelineTab === 'schedule'" class="schedule-tab">
-          <!-- 倒数日记录区 -->
-          <view class="countdown-section">
-            <text class="section-title">倒数日</text>
-            <view class="record-card">
-              <view class="icon-area">
-                <view class="couple-icon"></view>
-              </view>
-              <view class="info-area">
-                <text class="main-text">距离见ta</text>
-                <text class="date-text">2025.12.20 星期六</text>
-                <view class="days-area">
-                  <text class="days-number">0</text>
-                  <view class="days-unit">
-                    <text class="unit-text">DAYS</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-          </view>
-          
-          <!-- 分割线 -->
-          <view class="divider"></view>
-          
-          <!-- 纪念日记录区 -->
-          <view class="memorial-section">
-            <text class="section-title">纪念日</text>
-            <view class="record-card">
-              <view class="icon-area">
-                <view class="smiley-icon"></view>
-              </view>
-              <view class="info-area">
-                <text class="main-text">与ta相识</text>
-                <text class="date-text">2025.11.30 星期日</text>
-                <view class="days-area">
-                  <text class="days-number">20</text>
-                  <view class="days-unit">
-                    <text class="unit-text">DAYS</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-          </view>
-          
-          <!-- 添加按钮 -->
-          <view class="add-button" @tap="goToCreatePage">
-            <text class="plus-icon">+</text>
-          </view>
-        </view>
-      </scroll-view>
-    </view>
 
-    <!-- 统计模块内容 -->
-    <scroll-view 
-      class="statistics-content" 
-      v-show="currentTab === 'statistics'" 
-      scroll-y="true"
-      enable-back-to-top="true"
-      show-scrollbar="false"
-    >
-      
-      <!-- 状态概览区 -->
-      <view class="status-overview">
-        <!-- 今日专注 & 累计专注 -->
-        <view class="focus-cards">
-          <view class="focus-card focus-card--today">
-            <text class="card-label">今日专注</text>
-            <text class="card-value">75</text>
-            <text class="card-unit">分钟</text>
-          </view>
-          <view class="focus-card focus-card--total">
-            <text class="card-label">累计专注</text>
-            <text class="card-value">120</text>
-            <text class="card-unit">分钟</text>
-          </view>
-        </view>
-        
-        <!-- 今日失败 & 累计失败 -->
-        <view class="failure-section">
-          <view class="failure-item">
-            <text class="failure-label">今日失败</text>
-            <text class="failure-value">2</text>
-          </view>
-          <view class="failure-item">
-            <text class="failure-label">累计失败</text>
-            <text class="failure-value failure-value--highlight">15</text>
-          </view>
-        </view>
-      </view>
-      
-      <!-- 近期专注速览（柱状图模块） -->
-      <view class="recent-focus-section">
-        <view class="section-header">
-          <text class="section-title">近期专注速览</text>
-          <view class="dimension-toggle" @tap="toggleDimension">
-            <text class="dimension-text">时长</text>
-            <text class="arrow-icon">▼</text>
-          </view>
-        </view>
-        <text class="section-subtitle">累计时长1分</text>
-        
-        <!-- 柱状图 -->
-        <view class="bar-chart">
-          <view class="chart-container">
-            <!-- Y轴刻度 -->
-            <view class="y-axis">
-              <text class="y-label">60</text>
-              <text class="y-label">45</text>
-              <text class="y-label">30</text>
-              <text class="y-label">15</text>
-              <text class="y-label">0</text>
-            </view>
-            
-            <!-- 图表区域 -->
-            <view class="chart-area">
-              <!-- 红色虚线（平均时长/目标时长） -->
-              <view class="average-line"></view>
-              
-              <!-- 柱子 -->
-              <view class="bars-container">
-                <view 
-                  v-for="(bar, index) in barData" 
-                  :key="index"
-                  class="bar-wrapper"
-                  @tap="showDetail(bar)"
-                >
-                  <view 
-                    class="bar" 
-                    :style="{ height: bar.height + 'rpx' }"
-                  ></view>
-                  <view class="bird-icon"></view>
-                  <text class="bar-date">{{ bar.date }}</text>
-                </view>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-      
-      <!-- 标签分布（环形图+日期导航） -->
-      <view class="tag-distribution-section">
-        <!-- 日期导航栏 -->
-        <view class="date-navigation">
-          <view class="nav-button nav-button--prev" @tap="prevDay">
-            <text class="nav-arrow">‹</text>
-          </view>
-          <text class="current-date">12.20 周六</text>
-          <view class="nav-button nav-button--next" @tap="nextDay">
-            <text class="nav-arrow">›</text>
-          </view>
-        </view>
-        
-        <!-- 切换按钮 -->
-        <view class="dimension-switch">
-          <view 
-            class="switch-button" 
-            :class="{ 'switch-button--active': currentDimension === 'duration' }"
-            @tap="switchDimension('duration')"
-          >
-            <text class="switch-text">时长</text>
-          </view>
-          <view 
-            class="switch-button" 
-            :class="{ 'switch-button--active': currentDimension === 'count' }"
-            @tap="switchDimension('count')"
-          >
-            <text class="switch-text">次数</text>
-          </view>
-        </view>
-        
-        <!-- 环形图 -->
-        <view class="ring-chart-container">
-          <view class="ring-chart">
-            <!-- 中心文本 -->
-            <view class="chart-center">
-              <text class="center-value">1h 20m</text>
-              <text class="center-label">当日总专注时长</text>
-            </view>
-            
-            <!-- 扇区 -->
-            <view class="chart-sectors">
-              <!-- 这里简化展示，实际应该根据数据动态生成 -->
-              <view class="sector sector--focus"></view>
-              <view class="sector sector--study"></view>
-              <view class="sector sector--reading"></view>
-              <view class="sector sector--fitness"></view>
-              <view class="sector sector--work"></view>
-            </view>
-          </view>
-          
-          <!-- 扇区标签 -->
-          <view class="sector-labels">
-            <view class="label-item">
-              <view class="label-color label-color--focus"></view>
-              <text class="label-text">专注</text>
-              <text class="label-value">0分</text>
-            </view>
-            <view class="label-item">
-              <view class="label-color label-color--study"></view>
-              <text class="label-text">学习</text>
-              <text class="label-value">0分</text>
-            </view>
-            <view class="label-item">
-              <view class="label-color label-color--reading"></view>
-              <text class="label-text">阅读</text>
-              <text class="label-value">0分</text>
-            </view>
-            <view class="label-item">
-              <view class="label-color label-color--fitness"></view>
-              <text class="label-text">健身</text>
-              <text class="label-value">0分</text>
-            </view>
-            <view class="label-item">
-              <view class="label-color label-color--work"></view>
-              <text class="label-text">工作</text>
-              <text class="label-value">0分</text>
-            </view>
-          </view>
-        </view>
-        
-        <!-- 按天查看 -->
-        <view class="daily-view-toggle" @tap="toggleDailyView">
-          <text class="toggle-text">按天查看</text>
-          <text class="toggle-arrow">›</text>
-        </view>
-      </view>
-    </scroll-view>
+
+
 
   <view class="chicken-info-modal" v-if="showChickenInfoModal">
     <view class="chicken-info-overlay" @tap="closeChickenInfoModal"></view>
@@ -676,25 +373,7 @@
     </view>
   </scroll-view>
 
-    <!-- 底部导航栏 -->
-    <view class="tab-bar">
-      <view class="tab-item" :class="{'tab-item--active': currentTab === 'home'}" @tap="switchTab('home')">
-        <image class="tab-icon" src="/static/chiken.png"></image>
-        <text class="tab-text">首页</text>
-      </view>
-      <view class="tab-item" :class="{'tab-item--active': currentTab === 'statistics'}" @tap="switchTab('statistics')">
-        <image class="tab-icon" src="/static/statistics.png"></image>
-        <text class="tab-text">统计</text>
-      </view>
-      <view class="tab-item" :class="{'tab-item--active': currentTab === 'timeline'}" @tap="switchTab('timeline')">
-        <image class="tab-icon" src="/static/times.png"></image>
-        <text class="tab-text">时光</text>
-      </view>
-      <view class="tab-item" :class="{'tab-item--active': currentTab === 'profile'}" @tap="switchTab('profile')">
-        <image class="tab-icon" src="/static/mine.png"></image>
-        <text class="tab-text">我的</text>
-      </view>
-    </view>
+
   </view>
 </template>
 
@@ -759,7 +438,6 @@ export default {
       frameId: null,
       hasEntered: false,
       accelerometerHandler: null,
-      currentTab: 'home', // 当前选中的tab
       showProfilePage: false, // 是否显示我的页面
       showLogoutModal: false, // 是否显示注销账号弹窗
       showExitModal: false, // 是否显示退出登录弹窗
@@ -787,24 +465,9 @@ export default {
         { name: '工作', color: '#F44336', selected: false },
         { name: '专注', color: '#2196F3', selected: false }
       ],
-      activeTimelineTab: 'profile', // 时光模块当前选中的tab
+
       
-      // 统计模块数据
-      currentDimension: 'duration', // 当前维度：duration(时长) 或 count(次数)
-      showDailyView: false, // 是否显示按天查看
       
-      // 柱状图数据
-      barData: [
-        { date: '12.23', height: 80, value: 30 },
-        { date: '12.24', height: 120, value: 45 },
-        { date: '12.25', height: 60, value: 20 },
-        { date: '12.26', height: 100, value: 35 },
-        { date: '12.27', height: 140, value: 50 },
-        { date: '12.28', height: 90, value: 32 },
-        { date: '12.29', height: 110, value: 40 },
-        { date: '12.30', height: 70, value: 25 },
-        { date: '12.31', height: 130, value: 48 }
-      ]
     }
   },
   onLoad() {
@@ -1163,12 +826,7 @@ export default {
         
 
         
-    // 跳转到时光模块
-    goToTimeModule() {
-      this.showChickenInfoModal = false
-      // 切换到底部导航栏的时光选项
-      this.switchTab('timeline')
-    },
+
 
     handleStartFocus() {
       // 跳转到专注计时页面，传递当前设置的专注时长
@@ -1181,29 +839,7 @@ export default {
       })
     },
     
-    // 切换底部导航栏
-    switchTab(tab) {
-      this.currentTab = tab
-      // 根据tab显示不同内容
-      switch (tab) {
-        case 'home':
-          // 首页，当前页面
-          this.showProfilePage = false
-          break
-        case 'timeline':
-          // 时光模块，当前页面
-          this.showProfilePage = false
-          break
-        case 'statistics':
-          // 统计模块，当前页面
-          this.showProfilePage = false
-          break
-        case 'profile':
-          // 显示我的页面
-          this.showProfilePage = true
-          break
-      }
-    },
+
     
     // 显示标签选择器
     showTagSelectorModal() {
@@ -1401,16 +1037,9 @@ export default {
     },
     
     // 切换时光模块Tab
-    switchTimelineTab(tab) {
-      this.activeTimelineTab = tab
-    },
     
-    // 跳转到创建页面
-    goToCreatePage() {
-      uni.navigateTo({
-        url: '/pages/create-time/index'
-      })
-    },
+    
+
     
     // 喂食小鸡
     feedChicken() {
@@ -1458,56 +1087,7 @@ export default {
     
     // 统计模块方法
     
-    // 切换维度（时长/次数）
-    toggleDimension() {
-      // 这里可以实现维度切换逻辑
-      uni.showToast({
-        title: '切换维度',
-        icon: 'none'
-      })
-    },
-    
-    // 显示柱子详情
-    showDetail(bar) {
-      uni.showToast({
-        title: `日期: ${bar.date}, 时长: ${bar.value}分钟`,
-        icon: 'none'
-      })
-    },
-    
-    // 切换日期（前一天）
-    prevDay() {
-      uni.showToast({
-        title: '切换到前一天',
-        icon: 'none'
-      })
-    },
-    
-    // 切换日期（后一天）
-    nextDay() {
-      uni.showToast({
-        title: '切换到后一天',
-        icon: 'none'
-      })
-    },
-    
-    // 切换维度（时长/次数）
-    switchDimension(dimension) {
-      this.currentDimension = dimension
-      uni.showToast({
-        title: `切换到${dimension === 'duration' ? '时长' : '次数'}维度`,
-        icon: 'none'
-      })
-    },
-    
-    // 切换按天查看
-    toggleDailyView() {
-      this.showDailyView = !this.showDailyView
-      uni.showToast({
-        title: this.showDailyView ? '展开按天查看' : '收起按天查看',
-        icon: 'none'
-      })
-    },
+
     
     // 跳转到资料编辑页面
     goToProfileEdit() {

@@ -106,6 +106,8 @@
         </view>
       </view>
     </view>
+    
+
   </view>
 </template>
 
@@ -326,7 +328,7 @@ export default {
 <style scoped>
 .container {
   padding: 30rpx;
-  background-color: #f5f5f5;
+  background: linear-gradient(180deg, #fff8f0 0%, #ffe4c5 50%, #ffd7b0 100%);
   min-height: 100vh;
 }
 

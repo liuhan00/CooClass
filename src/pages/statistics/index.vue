@@ -1,10 +1,5 @@
 <template>
   <view class="container">
-    <!-- 页面标题 -->
-    <view class="page-header">
-      <text class="page-title">统计</text>
-    </view>
-    
     <!-- 状态概览区 -->
     <view class="status-overview">
       <!-- 今日专注 & 累计专注 -->
@@ -255,7 +250,7 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #f5f5f5;
+  background: linear-gradient(180deg, #fff8f0 0%, #ffe4c5 50%, #ffd7b0 100%);
   padding: 20rpx;
   box-sizing: border-box;
 }

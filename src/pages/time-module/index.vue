@@ -1,23 +1,18 @@
 <template>
   <view class="container">
-    <!-- 页面标题 -->
-    <view class="page-header">
-      <text class="page-title">时光</text>
-    </view>
-    
     <!-- Tab导航 -->
     <view class="tabs">
       <view 
         class="tab" 
         :class="{ 'tab--active': activeTab === 'profile' }"
-        @tap="switchTab('profile')"
+        @tap="switchInternalTab('profile')"
       >
         <text class="tab-text">小鸡档案</text>
       </view>
       <view 
         class="tab" 
         :class="{ 'tab--active': activeTab === 'schedule' }"
-        @tap="switchTab('schedule')"
+        @tap="switchInternalTab('schedule')"
       >
         <text class="tab-text">时光日程</text>
       </view>
@@ -31,8 +26,8 @@
         <view class="profile-section character-info">
           <view class="character-header">
             <view class="character-name-container">
-              <text class="character-name">小咕</text>
-              <text class="character-level">Lv.13</text>
+              <text class="character-name" @tap="editChickenName">{{ chickenInfo.nickname }}</text>
+              <text class="character-level">Lv.{{ chickenInfo.level }}</text>
             </view>
             <view class="character-status">
               <text class="status-indicator">N</text>
@@ -40,18 +35,18 @@
           </view>
           <view class="progress-container">
             <view class="progress-bar">
-              <view class="progress-fill" style="width: 71.5%"></view>
+              <view class="progress-fill" :style="{ width: (chickenInfo.expCurrent / chickenInfo.expTotal * 100) + '%' }"></view>
             </view>
-            <text class="progress-text">715/1000</text>
+            <text class="progress-text">{{ chickenInfo.expCurrent }}/{{ chickenInfo.expTotal }}</text>
           </view>
           <view class="character-stats">
             <view class="stat-item">
               <text class="stat-label">年龄</text>
-              <text class="stat-value">24天</text>
+              <text class="stat-value">{{ chickenInfo.days }}天</text>
             </view>
             <view class="stat-item">
               <text class="stat-label">体重</text>
-              <text class="stat-value">1.0 kg</text>
+              <text class="stat-value">{{ chickenInfo.weight }} kg</text>
             </view>
           </view>
         </view>
@@ -72,11 +67,11 @@
           </view>
           <view class="focus-stats">
             <view class="stat-item">
-              <text class="stat-value">120</text>
+              <text class="stat-value">{{ chickenInfo.focusHours || 120 }}</text>
               <text class="stat-label">小时</text>
             </view>
             <view class="stat-item">
-              <text class="stat-value">30</text>
+              <text class="stat-value">{{ chickenInfo.focusDays || 30 }}</text>
               <text class="stat-label">天</text>
             </view>
           </view>
@@ -137,6 +132,25 @@
         </view>
       </view>
     </view>
+    
+    <!-- 名称编辑弹窗 -->
+    <view class="name-edit-modal" v-if="showNameEditModal">
+      <view class="name-edit-modal-overlay" @tap="closeNameEditModal"></view>
+      <view class="name-edit-modal-content">
+        <text class="name-edit-modal-title">修改小鸡名称</text>
+        <input 
+          class="name-edit-input" 
+          v-model="newNickname" 
+          placeholder="请输入新的小鸡名称" 
+          @confirm="confirmNameEdit"
+          maxlength="20"
+        />
+        <view class="name-edit-modal-buttons">
+          <button class="modal-button cancel-button" @tap="closeNameEditModal">取消</button>
+          <button class="modal-button confirm-button" @tap="confirmNameEdit">确定</button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -144,12 +158,24 @@
 export default {
   data() {
     return {
-      activeTab: 'profile' // 默认激活小鸡档案tab
+      activeTab: 'profile', // 默认激活小鸡档案tab
+      chickenInfo: {
+        nickname: '小咕',
+        level: 13,
+        expCurrent: 715,
+        expTotal: 1000,
+        days: 24,
+        weight: 1.0,
+        focusHours: 120,
+        focusDays: 30
+      },
+      showNameEditModal: false,
+      newNickname: ''
     }
   },
   methods: {
-    // 切换tab
-    switchTab(tab) {
+    // 切换内部tab
+    switchInternalTab(tab) {
       this.activeTab = tab
     },
     
@@ -159,6 +185,34 @@ export default {
       uni.navigateTo({
         url: '/pages/create-time/index' // 假设创建页面路径
       })
+    },
+    
+    // 编辑小鸡名称
+    editChickenName() {
+      this.showNameEditModal = true;
+      this.newNickname = this.chickenInfo.nickname;
+    },
+    
+    // 关闭名称编辑弹窗
+    closeNameEditModal() {
+      this.showNameEditModal = false;
+    },
+    
+    // 确认修改名称
+    confirmNameEdit() {
+      if (this.newNickname.trim() !== '') {
+        this.chickenInfo.nickname = this.newNickname.trim();
+        uni.showToast({
+          title: '名称修改成功',
+          icon: 'success'
+        });
+        this.showNameEditModal = false;
+      } else {
+        uni.showToast({
+          title: '名称不能为空',
+          icon: 'none'
+        });
+      }
     }
   }
 }
@@ -169,7 +223,7 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #f5f5f5;
+  background: linear-gradient(180deg, #fff8f0 0%, #ffe4c5 50%, #ffd7b0 100%);
 }
 
 /* 页面标题 */
@@ -496,5 +550,92 @@ export default {
   font-size: 40rpx;
   color: #ffffff;
   font-weight: bold;
+}
+
+/* 名称编辑弹窗样式 */
+.name-edit-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+}
+
+.name-edit-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.name-edit-modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 50rpx 40rpx;
+  box-sizing: border-box;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.name-edit-modal-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #000000;
+  text-align: center;
+  margin-bottom: 30rpx;
+  width: 100%;
+}
+
+.name-edit-input {
+  width: 100%;
+  height: 80rpx;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  margin-bottom: 40rpx;
+  box-sizing: border-box;
+}
+
+.name-edit-modal-buttons {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.modal-button {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  border: none;
+  font-size: 32rpx;
+  margin: 0 10rpx;
+  color: #ffffff;
+}
+
+.cancel-button {
+  background-color: #cccccc; /* 灰色按钮 */
+}
+
+.cancel-button:active {
+  background-color: #bbbbbb;
+}
+
+.confirm-button {
+  background-color: #000000; /* 黑色按钮 */
+}
+
+.confirm-button:active {
+  background-color: #333333;
 }
 </style>

@@ -54,6 +54,13 @@
 			"style": {
 				"navigationBarTitleText": "创建时光"
 			}
+		},
+		{
+			"path": "pages/profile-edit/index",
+			"style": {
+				"navigationBarTitleText": "编辑资料",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {

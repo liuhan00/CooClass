@@ -271,6 +271,8 @@ export default {
   color: #333333;
 }
 
+
+
 /* 状态概览区 */
 .status-overview {
   background-color: #ffffff;

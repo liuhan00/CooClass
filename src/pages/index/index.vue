@@ -355,10 +355,6 @@
       enable-back-to-top="true"
       show-scrollbar="false"
     >
-      <!-- 页面标题 -->
-      <view class="page-header">
-        <text class="page-title">统计</text>
-      </view>
       
       <!-- 状态概览区 -->
       <view class="status-overview">
@@ -569,14 +565,21 @@
     <!-- 账号设置区块 -->
     <view class="settings-section">
       <text class="section-title">账号设置</text>
-      <view class="setting-item">
+      <view class="setting-item" @tap="goToProfileEdit">
+        <view class="setting-content">
+          <text class="setting-title">账号资料</text>
+          <text class="setting-desc">换头像、昵称、简介、生日</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+      <view class="setting-item" @tap="showLogoutModal = true">
         <view class="setting-content">
           <text class="setting-title">注销账号</text>
           <text class="setting-desc">会清空您所有的记录, 谨慎处理哦</text>
         </view>
         <text class="arrow">›</text>
       </view>
-      <view class="setting-item">
+      <view class="setting-item" @tap="showExitModal = true">
         <view class="setting-content">
           <text class="setting-title">退出登录</text>
           <text class="setting-desc">退出APP, 依然会保留数据</text>
@@ -643,6 +646,32 @@
           <text class="more-title">隐私政策</text>
         </view>
         <text class="arrow">›</text>
+      </view>
+    </view>
+    
+    <!-- 注销账号确认弹窗 -->
+    <view class="logout-modal" v-if="showLogoutModal">
+      <view class="logout-modal-overlay" @tap="closeLogoutModal"></view>
+      <view class="logout-modal-content">
+        <text class="logout-modal-title">注销账号</text>
+        <text class="logout-modal-content-text">注销账号会清空您的所有记录，并且不可恢复，谨慎处理哦</text>
+        <view class="logout-modal-buttons">
+          <button class="modal-button cancel-button" @tap="closeLogoutModal">取消</button>
+          <button class="modal-button confirm-button" @tap="confirmLogout">注销</button>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 退出登录确认弹窗 -->
+    <view class="exit-modal" v-if="showExitModal">
+      <view class="exit-modal-overlay" @tap="closeExitModal"></view>
+      <view class="exit-modal-content">
+        <text class="exit-modal-title">退出登录</text>
+        <text class="exit-modal-content-text">是否确认退出账号</text>
+        <view class="exit-modal-buttons">
+          <button class="modal-button cancel-button" @tap="closeExitModal">取消</button>
+          <button class="modal-button confirm-button" @tap="confirmExit">退出</button>
+        </view>
       </view>
     </view>
   </scroll-view>
@@ -732,6 +761,8 @@ export default {
       accelerometerHandler: null,
       currentTab: 'home', // 当前选中的tab
       showProfilePage: false, // 是否显示我的页面
+      showLogoutModal: false, // 是否显示注销账号弹窗
+      showExitModal: false, // 是否显示退出登录弹窗
       showTagSelector: false, // 是否显示标签选择器
       isEditingTags: false, // 是否处于标签编辑模式
       editingTagName: '', // 正在编辑的标签名称
@@ -1191,6 +1222,50 @@ export default {
       this.newTagName = ''
     },
     
+    // 关闭注销弹窗
+    closeLogoutModal() {
+      this.showLogoutModal = false;
+    },
+    
+    // 确认注销
+    confirmLogout() {
+      uni.showToast({
+        title: '账号已注销',
+        icon: 'none'
+      });
+      // 这里可以调用注销账号的API
+      // api.logoutAccount();
+      
+      // 关闭弹窗
+      this.showLogoutModal = false;
+      
+      // 可以跳转到登录页面
+      // uni.redirectTo({
+      //   url: '/pages/login/index'
+      // });
+    },
+    
+    // 关闭退出弹窗
+    closeExitModal() {
+      this.showExitModal = false;
+    },
+    
+    // 确认退出登录
+    confirmExit() {
+      uni.showToast({
+        title: '已退出登录',
+        icon: 'success'
+      });
+      
+      // 关闭弹窗
+      this.showExitModal = false;
+      
+      // 可以跳转到登录页面
+      // uni.redirectTo({
+      //   url: '/pages/login/index'
+      // });
+    },
+    
     // 选择标签
     selectTag(index) {
       // 取消之前选中的标签
@@ -1432,6 +1507,13 @@ export default {
         title: this.showDailyView ? '展开按天查看' : '收起按天查看',
         icon: 'none'
       })
+    },
+    
+    // 跳转到资料编辑页面
+    goToProfileEdit() {
+      uni.navigateTo({
+        url: '/pages/profile-edit/index'
+      });
     }
   },
 }
@@ -1453,6 +1535,20 @@ export default {
 
 .focus-screen {
   padding-top: 80rpx;
+}
+
+.profile-page {
+  padding: 0 30rpx 30rpx 30rpx;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 100rpx; /* 为底部tab-bar留出空间 */
+  z-index: 100;
+  background: linear-gradient(180deg, #fff8f0 0%, #ffe4c5 50%, #ffd7b0 100%);
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .focus-screen--entered .content-panel {
@@ -3672,11 +3768,7 @@ export default {
 }
 
 /* 我的页面样式 */
-.profile-page {
-  padding: 30rpx;
-  background-color: #f5f5f5;
-  min-height: 100vh;
-}
+
 
 /* 用户信息区 */
 .user-header {
@@ -3687,6 +3779,8 @@ export default {
   border-radius: 20rpx;
   margin-bottom: 30rpx;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .user-avatar {
@@ -3731,6 +3825,8 @@ export default {
   padding: 30rpx;
   margin-bottom: 30rpx;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .settings-section {
@@ -3754,6 +3850,7 @@ export default {
   justify-content: space-between;
   padding: 20rpx 0;
   border-bottom: 1rpx solid #f0f0f0;
+  box-sizing: border-box;
 }
 
 .setting-item:last-child,
@@ -3766,6 +3863,9 @@ export default {
 .support-content,
 .more-content {
   flex: 1;
+  overflow: hidden;
+  word-wrap: break-word;
+  word-break: break-all;
 }
 
 .setting-title,
@@ -3776,6 +3876,10 @@ export default {
   font-weight: bold;
   margin-bottom: 10rpx;
   display: block;
+  overflow: hidden;
+  word-wrap: break-word;
+  word-break: break-all;
+  white-space: normal;
 }
 
 .setting-desc,
@@ -3784,12 +3888,18 @@ export default {
   font-size: 26rpx;
   color: #999999;
   font-weight: normal;
+  overflow: hidden;
+  word-wrap: break-word;
+  word-break: break-all;
+  white-space: normal;
 }
 
 .arrow {
   color: #cccccc;
   font-size: 32rpx;
   margin-left: 20rpx;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 /* 支持我们项特殊样式 */
@@ -3802,6 +3912,170 @@ export default {
 /* 特殊处理注销账号项 */
 .setting-item:first-child .setting-title {
   color: #ff4757;
+}
+
+/* 注销账号弹窗样式 */
+.logout-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1001;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.logout-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.logout-modal-content {
+  position: relative;
+  width: 100%;
+  max-height: 80vh; /* 限制最大高度 */
+  background-color: #ffffff;
+  border-radius: 40rpx 40rpx 0 0;
+  padding: 50rpx 30rpx 60rpx 30rpx; /* 减少左右内边距 */
+  box-sizing: border-box;
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto; /* 添加滚动 */
+}
+
+.logout-modal-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #000000;
+  text-align: center;
+  margin-bottom: 30rpx;
+  width: 100%;
+  flex-shrink: 0; /* 防止收缩 */
+  word-wrap: break-word; /* 允许文本换行 */
+  word-break: break-all; /* 强制换行 */
+}
+
+.logout-modal-content-text {
+  font-size: 28rpx;
+  color: #666666;
+  text-align: center;
+  margin-bottom: 50rpx;
+  line-height: 1.5;
+  width: 100%;
+  flex-shrink: 0; /* 防止收缩 */
+  word-wrap: break-word; /* 允许文本换行 */
+  word-break: break-all; /* 强制换行 */
+}
+
+.logout-modal-buttons {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  flex-shrink: 0; /* 防止收缩 */
+  padding: 0 10rpx; /* 添加按钮区域的左右内边距 */
+}
+
+/* 退出登录弹窗样式（与注销账号弹窗样式相同） */
+.exit-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1001;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.exit-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.exit-modal-content {
+  position: relative;
+  width: 100%;
+  max-height: 80vh; /* 限制最大高度 */
+  background-color: #ffffff;
+  border-radius: 40rpx 40rpx 0 0;
+  padding: 50rpx 30rpx 60rpx 30rpx; /* 减少左右内边距 */
+  box-sizing: border-box;
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto; /* 添加滚动 */
+}
+
+.exit-modal-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #000000;
+  text-align: center;
+  margin-bottom: 30rpx;
+  width: 100%;
+  flex-shrink: 0; /* 防止收缩 */
+  word-wrap: break-word; /* 允许文本换行 */
+  word-break: break-all; /* 强制换行 */
+}
+
+.exit-modal-content-text {
+  font-size: 28rpx;
+  color: #666666;
+  text-align: center;
+  margin-bottom: 50rpx;
+  line-height: 1.5;
+  width: 100%;
+  flex-shrink: 0; /* 防止收缩 */
+  word-wrap: break-word; /* 允许文本换行 */
+  word-break: break-all; /* 强制换行 */
+}
+
+.exit-modal-buttons {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  flex-shrink: 0; /* 防止收缩 */
+  padding: 0 10rpx; /* 添加按钮区域的左右内边距 */
+}
+
+.modal-button {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  border: none;
+  font-size: 32rpx;
+  margin: 0 10rpx;
+  color: #ffffff;
+}
+
+.cancel-button {
+  background-color: #cccccc; /* 灰色按钮 */
+}
+
+.cancel-button:active {
+  background-color: #bbbbbb;
+}
+
+.confirm-button {
+  background-color: #000000; /* 黑色按钮 */
+}
+
+.confirm-button:active {
+  background-color: #333333;
 }
 
 </style>

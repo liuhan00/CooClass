@@ -1,7 +1,8 @@
 <template>
   <view class="container">
-    <!-- 页面头部 -->
-    <view class="header">
+    <!-- 页面标题 -->
+    <view class="page-header">
+      <text class="page-title">时光</text>
     </view>
     
     <!-- Tab导航 -->
@@ -171,12 +172,18 @@ export default {
   background-color: #f5f5f5;
 }
 
-.header {
-  background-color: #ffffff;
-  padding: 30rpx;
-  text-align: center;
-  border-bottom: 1rpx solid #e0e0e0;
+/* 页面标题 */
+.page-header {
+  margin-bottom: 30rpx;
 }
+
+.page-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+
 
 
 

@@ -17,7 +17,7 @@
     <!-- 账号设置区块 -->
     <view class="settings-section">
       <text class="section-title">账号设置</text>
-      <view class="setting-item" @tap="handleSettingTap('注销账号')">
+      <view class="setting-item" @tap="showLogoutModal = true">
         <view class="setting-content">
           <text class="setting-title">注销账号</text>
           <text class="setting-desc">会清空您所有的记录, 谨慎处理哦</text>
@@ -93,6 +93,19 @@
         <text class="arrow">></text>
       </view>
     </view>
+    
+    <!-- 注销账号确认弹窗 -->
+    <view class="logout-modal" v-if="showLogoutModal">
+      <view class="logout-modal-overlay" @tap="closeLogoutModal"></view>
+      <view class="logout-modal-content">
+        <text class="logout-modal-title">注销账号</text>
+        <text class="logout-modal-content-text">注销账号会清空您的所有记录，并且不可恢复，谨慎处理哦</text>
+        <view class="logout-modal-buttons">
+          <button class="modal-button cancel-button" @tap="closeLogoutModal">取消</button>
+          <button class="modal-button confirm-button" @tap="confirmLogout">注销</button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -105,7 +118,8 @@ export default {
         username: '用户名',
         userId: '123456789',
         avatar: '/static/logo.png'
-      }
+      },
+      showLogoutModal: false
     }
   },
   
@@ -116,6 +130,28 @@ export default {
   },
   
   methods: {
+    // 添加新的方法来处理注销弹窗
+    closeLogoutModal() {
+      this.showLogoutModal = false;
+    },
+    
+    confirmLogout() {
+      uni.showToast({
+        title: '账号已注销',
+        icon: 'none'
+      });
+      // 这里可以调用注销账号的API
+      // api.logoutAccount();
+      
+      // 关闭弹窗
+      this.showLogoutModal = false;
+      
+      // 可以跳转到登录页面
+      // uni.redirectTo({
+      //   url: '/pages/login/index'
+      // });
+    },
+    
     // 获取用户信息（示例方法）
     fetchUserInfo() {
       // 这里可以调用后端API获取用户真实信息
@@ -148,21 +184,7 @@ export default {
       
       switch(setting) {
         case '注销账号':
-          uni.showModal({
-            title: '确认注销',
-            content: '注销账号会清空您所有的记录，且无法恢复，请谨慎操作！',
-            confirmColor: '#FF0000',
-            success: (res) => {
-              if (res.confirm) {
-                uni.showToast({
-                  title: '账号已注销',
-                  icon: 'none'
-                });
-                // 这里可以调用注销账号的API
-                // api.logoutAccount();
-              }
-            }
-          });
+          // 这个case现在不会被执行，因为注销账号点击事件直接设置showLogoutModal = true
           break;
         case '退出登录':
           uni.showModal({
@@ -443,5 +465,90 @@ export default {
 /* 特殊处理注销账号项 */
 .setting-item:first-child .setting-title {
   color: #ff4757;
+}
+
+/* 注销账号弹窗样式 */
+.logout-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logout-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.logout-modal-content {
+  position: relative;
+  width: 80%;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 50rpx 40rpx;
+  box-sizing: border-box;
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logout-modal-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #000000;
+  text-align: center;
+  margin-bottom: 30rpx;
+  width: 100%;
+}
+
+.logout-modal-content-text {
+  font-size: 28rpx;
+  color: #666666;
+  text-align: center;
+  margin-bottom: 50rpx;
+  line-height: 1.5;
+  width: 100%;
+}
+
+.logout-modal-buttons {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.modal-button {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  border: none;
+  font-size: 32rpx;
+  margin: 0 10rpx;
+  color: #ffffff;
+}
+
+.cancel-button {
+  background-color: #cccccc; /* 灰色按钮 */
+}
+
+.cancel-button:active {
+  background-color: #bbbbbb;
+}
+
+.confirm-button {
+  background-color: #000000; /* 黑色按钮 */
+}
+
+.confirm-button:active {
+  background-color: #333333;
 }
 </style>

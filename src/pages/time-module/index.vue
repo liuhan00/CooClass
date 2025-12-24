@@ -29,9 +29,6 @@
               <text class="character-name" @tap="editChickenName">{{ chickenInfo.nickname }}</text>
               <text class="character-level">Lv.{{ chickenInfo.level }}</text>
             </view>
-            <view class="character-status">
-              <text class="status-indicator">N</text>
-            </view>
           </view>
           <view class="progress-container">
             <view class="progress-bar">
@@ -51,13 +48,34 @@
           </view>
         </view>
         
-        <view class="profile-section">
+        <view class="profile-section chat-section">
           <view class="section-header">
-            <text class="section-title">等级成长曲线</text>
+            <text class="section-title">与小鸡聊天</text>
           </view>
-          <view class="growth-chart">
-            <!-- 这里可以放置等级成长曲线图表 -->
-            <text class="chart-placeholder">等级成长曲线图表</text>
+          <view class="chat-container">
+            <scroll-view 
+              class="chat-messages" 
+              id="chatMessages" 
+              scroll-y="true" 
+              :scroll-top="chatScrollTop"
+              :scroll-with-animation="true"
+            >
+              <view class="message-item" v-for="(msg, index) in chatMessages" :key="index" :class="{ 'user-message': msg.sender === 'user', 'chicken-message': msg.sender === 'chicken' }">
+                <view class="message-content">
+                  <text class="message-text">{{ msg.text }}</text>
+                  <text class="message-time">{{ msg.time }}</text>
+                </view>
+              </view>
+            </scroll-view>
+            <view class="chat-input-area">
+              <input 
+                class="chat-input" 
+                v-model="currentMessage" 
+                placeholder="对小鸡说点什么吧~" 
+                @confirm="sendChatMessage"
+              />
+              <button class="send-button" @tap="sendChatMessage">发送</button>
+            </view>
           </view>
         </view>
         
@@ -170,8 +188,23 @@ export default {
         focusDays: 30
       },
       showNameEditModal: false,
-      newNickname: ''
+      newNickname: '',
+      // 聊天相关数据
+      chatMessages: [],
+      currentMessage: '',
+      chatScrollTop: 0
     }
+  },
+  
+  onLoad() {
+    // 初始化聊天消息
+    this.chatMessages = [
+      {
+        text: '你好！我是小咕，很高兴和你聊天！',
+        sender: 'chicken',
+        time: this.formatTime(new Date())
+      }
+    ];
   },
   methods: {
     // 切换内部tab
@@ -202,6 +235,12 @@ export default {
     confirmNameEdit() {
       if (this.newNickname.trim() !== '') {
         this.chickenInfo.nickname = this.newNickname.trim();
+        // 添加昵称修改通知
+        this.chatMessages.push({
+          text: '昵称已更新为：' + this.chickenInfo.nickname,
+          sender: 'chicken',
+          time: this.formatTime(new Date())
+        });
         uni.showToast({
           title: '名称修改成功',
           icon: 'success'
@@ -213,6 +252,75 @@ export default {
           icon: 'none'
         });
       }
+    },
+    
+    // 格式化时间
+    formatTime(date) {
+      const hour = date.getHours().toString().padStart(2, '0');
+      const minute = date.getMinutes().toString().padStart(2, '0');
+      return `${hour}:${minute}`;
+    },
+    
+    // 发送聊天消息
+    sendChatMessage() {
+      if (!this.currentMessage.trim()) {
+        return;
+      }
+      
+      // 添加用户消息
+      const userMessage = {
+        text: this.currentMessage,
+        sender: 'user',
+        time: this.formatTime(new Date())
+      };
+      this.chatMessages.push(userMessage);
+      
+      // 清空输入框
+      const message = this.currentMessage;
+      this.currentMessage = '';
+      
+      // 模拟小鸡回复
+      setTimeout(() => {
+        const responses = [
+          '咕咕咕~ 你说得对！',
+          '真有趣，能再告诉我多一点吗？',
+          '我最喜欢听你说话了！',
+          '专注学习真是一件快乐的事情呢！',
+          '今天你学到了什么新知识吗？',
+          '我们一起加油吧！',
+          '你真是个有趣的人呢！',
+          '我陪着你，一起成长吧！',
+          '你今天的专注时长很棒哦！',
+          '继续保持专注，你一定可以的！'
+        ];
+        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+        
+        const chickenMessage = {
+          text: randomResponse,
+          sender: 'chicken',
+          time: this.formatTime(new Date())
+        };
+        this.chatMessages.push(chickenMessage);
+        
+        // 滚动到底部
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
+      }, 1000);
+      
+      // 滚动到底部
+      this.$nextTick(() => {
+        this.scrollToBottom();
+      });
+    },
+    
+    // 滚动到底部
+    scrollToBottom() {
+      this.$nextTick(() => {
+        // 更新scrollTop以滚动到底部
+        const timestamp = new Date().getTime();
+        this.chatScrollTop = timestamp; // 使用时间戳作为唯一值来触发滚动
+      });
     }
   }
 }
@@ -372,21 +480,7 @@ export default {
   color: #666666;
 }
 
-.character-status {
-  width: 50rpx;
-  height: 50rpx;
-  border-radius: 50%;
-  background-color: #f0f0f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
-.status-indicator {
-  font-size: 24rpx;
-  font-weight: bold;
-  color: #666666;
-}
 
 .progress-container {
   margin-bottom: 20rpx;
@@ -402,7 +496,7 @@ export default {
 
 .progress-fill {
   height: 100%;
-  background-color: #4CAF50;
+  background-color: rgba(255, 107, 139, 0.7);
   border-radius: 10rpx;
 }
 
@@ -430,6 +524,90 @@ export default {
   font-size: 28rpx;
   font-weight: bold;
   color: #000000;
+}
+
+/* 聊天界面样式 */
+.chat-section {
+  padding: 30rpx;
+  min-height: 400rpx;
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 350rpx;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 20rpx 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-item {
+  margin-bottom: 20rpx;
+  max-width: 80%;
+}
+
+.user-message {
+  align-self: flex-end;
+}
+
+.user-message .message-content {
+  background-color: #4CAF50;
+  color: white;
+  border-radius: 20rpx 8rpx 20rpx 20rpx;
+  padding: 15rpx;
+}
+
+.chicken-message {
+  align-self: flex-start;
+}
+
+.chicken-message .message-content {
+  background-color: #f0f0f0;
+  color: #333333;
+  border-radius: 8rpx 20rpx 20rpx 20rpx;
+  padding: 15rpx;
+}
+
+.message-text {
+  display: block;
+  margin-bottom: 5rpx;
+}
+
+.message-time {
+  font-size: 20rpx;
+  color: #999;
+  text-align: right;
+}
+
+.chat-input-area {
+  display: flex;
+  align-items: center;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #eee;
+}
+
+.chat-input {
+  flex: 1;
+  height: 60rpx;
+  border: 1rpx solid #ddd;
+  border-radius: 30rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  margin-right: 10rpx;
+}
+
+.send-button {
+  width: 80rpx;
+  height: 60rpx;
+  background-color: #333;
+  color: white;
+  border-radius: 30rpx;
+  font-size: 24rpx;
+  line-height: 60rpx;
 }
 
 /* 时光日程样式 */

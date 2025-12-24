@@ -15,6 +15,13 @@ export default {
       console.warn('捕获到WebSocket关闭代码错误，已忽略:', error)
       return
     }
+    
+    // 检查是否是subPageFrameEndTime错误
+    if (error && typeof error === 'string' && error.includes('__subPageFrameEndTime__')) {
+      console.warn('捕获到subPageFrameEndTime错误，已忽略:', error)
+      return
+    }
+    
     console.error('全局错误:', error)
   },
 }

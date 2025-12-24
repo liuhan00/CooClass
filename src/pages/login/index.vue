@@ -22,7 +22,7 @@
         ></canvas>
       </view>
     </view>
-    <text class="hero-name" style="margin-top: 50rpx; text-align: center; font-size: 56rpx; font-weight: 700; letter-spacing: 12rpx; color: #3a210e; z-index: 10; font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif; text-shadow: 2rpx 2rpx 8rpx rgba(58, 33, 14, 0.3);">{{ brandName }}</text>
+    <text class="hero-name">{{ brandName }}</text>
 
     <view class="content-panel">
       <view class="top-bar">
@@ -164,23 +164,31 @@ export default {
     // 初始化Canvas动画
     this.initCanvasAnimation()
   },
+  
   onShow() {
     this.startPhysics()
     this.startAccelerometer()
   },
+  
   onHide() {
     this.stopPhysics()
     this.stopAccelerometer()
   },
+  
   onUnload() {
-    this.stopPhysics()
-    this.stopAccelerometer()
+    // 清理物理引擎
     this.destroyMatterWorld()
+    
+    // 清理定时器
     if (this.loginTimer) {
       clearTimeout(this.loginTimer)
       this.loginTimer = null
     }
+    
+    // 停止重力感应
+    this.stopAccelerometer()
   },
+  
   methods: {
     cacheDeviceRatio() {
       try {
@@ -743,26 +751,32 @@ export default {
   left: 64rpx;
   transform: translate(0, 0) scale(0.58);
   transform-origin: top left;
+  transition: transform 0.7s cubic-bezier(0.19, 1, 0.22, 1), top 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+    left 0.7s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.hero-name {
+  margin-top: 50rpx;
+  text-align: center;
+  font-size: 56rpx;
+  font-weight: 700;
+  letter-spacing: 12rpx;
+  color: #3a210e;
+  z-index: 10;
+  font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  text-shadow: 2rpx 2rpx 8rpx rgba(58, 33, 14, 0.3);
+  position: relative;
 }
 
 .login-screen--entered .hero-name {
   opacity: 1;
-  transition: opacity 0.3s ease;
-}
-
-.login-screen--entered .hero-name {
   margin-top: 20rpx;
-  text-align: left;
-  font-size: 32rpx;
-  letter-spacing: 6rpx;
-}
-
-.hero-name {
-  margin-top: 24rpx;
+  text-align: right;
   font-size: 56rpx;
-  font-weight: 600;
-  letter-spacing: 10rpx;
-  color: #3a210e;
+  letter-spacing: 6rpx;
+  transform: translate(200rpx, 0) scale(1);
+  transform-origin: top right;
+  transition: opacity 0.3s ease, transform 0.7s cubic-bezier(0.19, 1, 0.22, 1);
 }
 
 .hero-tagline {

@@ -34,11 +34,11 @@
       <view class="section-header">
         <text class="section-title">近期专注速览</text>
         <view class="dimension-toggle" @tap="toggleDimension">
-          <text class="dimension-text">时长</text>
+          <text class="dimension-text">{{ dimensionText }}</text>
           <text class="arrow-icon">▼</text>
         </view>
       </view>
-      <text class="section-subtitle">累计时长1分</text>
+      <text class="section-subtitle">{{ dimensionSubtitle }}</text>
       
       <!-- 柱状图 -->
       <view class="bar-chart">
@@ -69,7 +69,6 @@
                   class="bar" 
                   :style="{ height: bar.height + 'rpx' }"
                 ></view>
-                <view class="bird-icon"></view>
                 <text class="bar-date">{{ bar.date }}</text>
               </view>
             </view>
@@ -80,13 +79,21 @@
     
     <!-- 标签分布（环形图+日期导航） -->
     <view class="tag-distribution-section">
+      <view class="section-header">
+        <text class="section-title">标签分布</text>
+        <!-- 按天查看 -->
+        <view class="daily-view-toggle" @tap="toggleDailyView">
+          <text class="toggle-text">按天查看</text>
+          <text class="toggle-arrow">›</text>
+        </view>
+      </view>
       <!-- 日期导航栏 -->
       <view class="date-navigation">
         <view class="nav-button nav-button--prev" @tap="prevDay">
           <text class="nav-arrow">‹</text>
         </view>
-        <text class="current-date">12.20 周六</text>
-        <view class="nav-button nav-button--next" @tap="nextDay">
+        <text class="current-date">{{ currentDate }}</text>
+        <view class="nav-button nav-button--next" :class="{ 'nav-button--disabled': currentDate === todayDate }" @tap="nextDay">
           <text class="nav-arrow">›</text>
         </view>
       </view>
@@ -114,58 +121,87 @@
         <view class="ring-chart">
           <!-- 中心文本 -->
           <view class="chart-center">
-            <text class="center-value">1h 20m</text>
-            <text class="center-label">当日总专注时长</text>
+            <text class="center-value">{{ ringChartTotal }}次</text>
+            <text class="center-sublabel">今日总次数</text>
           </view>
           
-          <!-- 扇区 -->
-          <view class="chart-sectors">
-            <!-- 这里简化展示，实际应该根据数据动态生成 -->
-            <view class="sector sector--focus"></view>
-            <view class="sector sector--study"></view>
-            <view class="sector sector--reading"></view>
-            <view class="sector sector--fitness"></view>
-            <view class="sector sector--work"></view>
-          </view>
-        </view>
-        
-        <!-- 扇区标签 -->
-        <view class="sector-labels">
-          <view class="label-item">
-            <view class="label-color label-color--focus"></view>
-            <text class="label-text">专注</text>
-            <text class="label-value">0分</text>
-          </view>
-          <view class="label-item">
-            <view class="label-color label-color--study"></view>
-            <text class="label-text">学习</text>
-            <text class="label-value">0分</text>
-          </view>
-          <view class="label-item">
-            <view class="label-color label-color--reading"></view>
-            <text class="label-text">阅读</text>
-            <text class="label-value">0分</text>
-          </view>
-          <view class="label-item">
-            <view class="label-color label-color--fitness"></view>
-            <text class="label-text">健身</text>
-            <text class="label-value">0分</text>
-          </view>
-          <view class="label-item">
-            <view class="label-color label-color--work"></view>
-            <text class="label-text">工作</text>
-            <text class="label-value">0分</text>
-          </view>
+          <!-- 环形图 -->
+          <canvas 
+            :id="'ringChartCanvas' + currentDimension" 
+            class="ring-canvas" 
+            :canvas-id="'ringChartCanvas' + currentDimension" 
+            type="2d"
+            @touchstart="onRingChartTouchStart"
+            @touchmove="onRingChartTouchMove"
+            @touchend="onRingChartTouchEnd"
+          ></canvas>
         </view>
       </view>
       
-      <!-- 按天查看 -->
-      <view class="daily-view-toggle" @tap="toggleDailyView">
-        <text class="toggle-text">按天查看</text>
-        <text class="toggle-arrow">›</text>
+
+    </view>
+  
+  <!-- 维度选择弹窗 -->
+  <view class="dimension-modal" v-if="showDimensionModal" @tap="closeDimensionModal">
+    <view class="dimension-modal-overlay" @tap.stop=""></view>
+    <view class="dimension-modal-content" @tap.stop="">
+      <view class="dimension-modal-header">
+        <text class="dimension-modal-title">选择分类类型</text>
+        <view class="dimension-modal-close" @tap="closeDimensionModal">×</view>
+      </view>
+      <view class="dimension-modal-body">
+        <view 
+          class="dimension-option" 
+          :class="{ 'dimension-option--active': currentDimension === 'duration' }"
+          @tap="selectDimension('duration')"
+        >
+          <text class="dimension-option-text">时长</text>
+        </view>
+        <view 
+          class="dimension-option" 
+          :class="{ 'dimension-option--active': currentDimension === 'count' }"
+          @tap="selectDimension('count')"
+        >
+          <text class="dimension-option-text">次数</text>
+        </view>
       </view>
     </view>
   </view>
+  
+  <!-- 时间分类选择弹窗 -->
+  <view class="time-classification-modal" v-if="showTimeClassificationModal" @tap="closeTimeClassificationModal">
+    <view class="time-classification-overlay" @tap.stop=""></view>
+    <view class="time-classification-content" @tap.stop="">
+      <view class="time-classification-header">
+        <text class="time-classification-title">按时间分类</text>
+        <view class="time-classification-close" @tap="closeTimeClassificationModal">×</view>
+      </view>
+      <view class="time-classification-body">
+        <view class="picker-container">
+          <view class="picker-overlay-top"></view>
+          <view class="picker-overlay-bottom"></view>
+          <picker-view 
+            class="picker-view" 
+            :value="pickerValue" 
+            @change="onPickerChange"
+          >
+            <picker-view-column>
+              <view class="picker-item" v-for="item in timeClassificationOptions" :key="item.value">
+                {{ item.label }}
+              </view>
+            </picker-view-column>
+          </picker-view>
+          <view class="picker-highlight"></view>
+        </view>
+      </view>
+      <view class="time-classification-footer">
+        <view class="time-classification-confirm" @tap="finishTimeClassification">
+          <text class="time-classification-confirm-text">完成</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
 </template>
 
 <script>
@@ -174,9 +210,21 @@ export default {
     return {
       currentDimension: 'duration', // 当前维度：duration(时长) 或 count(次数)
       showDailyView: false, // 是否显示按天查看
+      showDimensionModal: false, // 是否显示维度选择弹窗
+      showTimeClassificationModal: false, // 是否显示时间分类选择弹窗
+      timeClassification: 'day', // 时间分类：day(按天)、week(按周)、month(按月)、year(按年)
+      timeClassificationOptions: [
+        { label: '按天查看', value: 'day' },
+        { label: '按周查看', value: 'week' },
+        { label: '按月查看', value: 'month' },
+        { label: '按年查看', value: 'year' }
+      ], // 时间分类选项
+      pickerValue: [0], // 滚动选择器的值
+      currentDate: '', // 当前选中的日期
+      todayDate: '', // 今天的日期
       
-      // 柱状图数据
-      barData: [
+      // 柱状图数据 - 时长
+      durationData: [
         { date: '12.23', height: 80, value: 30 },
         { date: '12.24', height: 120, value: 45 },
         { date: '12.25', height: 60, value: 20 },
@@ -186,42 +234,138 @@ export default {
         { date: '12.29', height: 110, value: 40 },
         { date: '12.30', height: 70, value: 25 },
         { date: '12.31', height: 130, value: 48 }
-      ]
+      ],
+      // 柱状图数据 - 次数
+      countData: [
+        { date: '12.23', height: 70, value: 8 },
+        { date: '12.24', height: 100, value: 12 },
+        { date: '12.25', height: 50, value: 5 },
+        { date: '12.26', height: 90, value: 10 },
+        { date: '12.27', height: 120, value: 15 },
+        { date: '12.28', height: 80, value: 7 },
+        { date: '12.29', height: 100, value: 11 },
+        { date: '12.30', height: 60, value: 4 },
+        { date: '12.31', height: 110, value: 13 }
+      ],
+      
+      // 环形图数据
+      ringChartData: [
+        { label: '专注', value: 30, color: '#000000', count: 30 }, // 黑色
+        { label: '阅读', value: 20, color: '#444444', count: 20 }, // 深灰
+        { label: '工作', value: 15, color: '#888888', count: 15 }, // 中灰
+        { label: '健身', value: '#BBBBBB', count: 10 }, // 浅灰
+        { label: '学习', value: '#DDDDDD', count: 5 }  // 极浅灰
+      ],
+      ringChartTotal: 140 // 总次数
+    }
+  },
+  
+  onLoad() {
+    this.initDates();
+    this.$nextTick(() => {
+      setTimeout(() => {
+        this.drawRingChart();
+      }, 100);
+    });
+  },
+  
+  computed: {
+    barData() {
+      return this.currentDimension === 'duration' ? this.durationData : this.countData;
+    },
+    
+    dimensionText() {
+      return this.currentDimension === 'duration' ? '时长' : '次数';
+    },
+    
+    dimensionSubtitle() {
+      const total = this.currentDimension === 'duration' 
+        ? '1小时' 
+        : '15次';
+      return `累计${total}`;
     }
   },
   
   methods: {
+    // 初始化日期
+    initDates() {
+      const today = new Date();
+      this.todayDate = this.formatDate(today);
+      this.currentDate = this.todayDate; // 默认显示今天
+      
+      // 初始化滚动选择器的值
+      this.updatePickerValue();
+    },
+    
+    // 更新滚动选择器的值
+    updatePickerValue() {
+      const index = this.timeClassificationOptions.findIndex(item => item.value === this.timeClassification);
+      this.pickerValue = [index >= 0 ? index : 0];
+    },
+    
+    // 格式化日期为 MM.DD 周X 格式
+    formatDate(date) {
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+      const weekDay = weekDays[date.getDay()];
+      return `${month}.${day} 周${weekDay}`;
+    },
     // 切换维度（时长/次数）
     toggleDimension() {
-      // 这里可以实现维度切换逻辑
+      this.showDimensionModal = true;
+    },
+    
+    // 选择维度
+    selectDimension(dimension) {
+      this.currentDimension = dimension;
+      this.showDimensionModal = false;
+      
+      // 这里可以添加更新图表数据的逻辑
       uni.showToast({
-        title: '切换维度',
+        title: `已切换到${dimension === 'duration' ? '时长' : '次数'}维度`,
         icon: 'none'
-      })
+      });
+    },
+    
+    // 关闭维度选择弹窗
+    closeDimensionModal() {
+      this.showDimensionModal = false;
     },
     
     // 显示柱子详情
     showDetail(bar) {
+      const unit = this.currentDimension === 'duration' ? '分钟' : '次';
       uni.showToast({
-        title: `日期: ${bar.date}, 时长: ${bar.value}分钟`,
+        title: `日期: ${bar.date}, ${this.dimensionText}: ${bar.value}${unit}`,
         icon: 'none'
       })
     },
     
     // 切换日期（前一天）
     prevDay() {
-      uni.showToast({
-        title: '切换到前一天',
-        icon: 'none'
-      })
+      const date = new Date();
+      date.setDate(date.getDate() - 1);
+      this.currentDate = this.formatDate(date);
     },
     
     // 切换日期（后一天）
     nextDay() {
-      uni.showToast({
-        title: '切换到后一天',
-        icon: 'none'
-      })
+      // 检查是否已经是今天，如果是今天则不能向后选择
+      if (this.currentDate === this.todayDate) {
+        return;
+      }
+      
+      const date = new Date();
+      // 从当前显示的日期开始计算
+      const currentDateStr = this.currentDate.split(' ')[0]; // 获取 MM.DD 部分
+      const [month, day] = currentDateStr.split('.').map(Number);
+      
+      date.setMonth(month - 1);
+      date.setDate(day);
+      date.setDate(date.getDate() + 1); // 向后一天
+      
+      this.currentDate = this.formatDate(date);
     },
     
     // 切换维度（时长/次数）
@@ -231,15 +375,189 @@ export default {
         title: `切换到${dimension === 'duration' ? '时长' : '次数'}维度`,
         icon: 'none'
       })
+      
+      // 重新绘制环形图
+      this.$nextTick(() => {
+        setTimeout(() => {
+          this.drawRingChart();
+        }, 100);
+      });
     },
     
-    // 切换按天查看
+    // 显示时间分类选择弹窗
     toggleDailyView() {
-      this.showDailyView = !this.showDailyView
-      uni.showToast({
-        title: this.showDailyView ? '展开按天查看' : '收起按天查看',
-        icon: 'none'
-      })
+      this.showTimeClassificationModal = true;
+    },
+    
+    // 滚动选择器变化
+    onPickerChange(e) {
+      const index = e.detail.value[0];
+      this.pickerValue = [index];
+      this.timeClassification = this.timeClassificationOptions[index].value;
+    },
+    
+    // 关闭时间分类选择弹窗
+    closeTimeClassificationModal() {
+      this.showTimeClassificationModal = false;
+    },
+    
+    // 完成时间分类选择
+    finishTimeClassification() {
+      this.showTimeClassificationModal = false;
+    },
+    
+    // 选择时间分类
+    selectTimeClassification(classification) {
+      this.timeClassification = classification;
+      this.updatePickerValue();
+    },
+    
+    // 绘制环形图
+    async drawRingChart() {
+      // 获取 Canvas 2D 上下文
+      const query = uni.createSelectorQuery().in(this);
+      const canvasNode = await new Promise(resolve => {
+        query.select('#ringChartCanvas' + this.currentDimension).node().exec(resolve);
+      });
+      
+      if (!canvasNode || !canvasNode[0] || !canvasNode[0].node) {
+        console.error('Canvas node not found');
+        return;
+      }
+      
+      const canvas = canvasNode[0].node;
+      const ctx = canvas.getContext('2d');
+      
+      // 设置canvas尺寸
+      canvas.width = 250;
+      canvas.height = 250;
+      
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = 70; // 外半径，减小使环更细
+      const innerRadius = 50; // 内半径，增大使环更细
+      
+      // 清除画布
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // 计算总值
+      const total = this.currentDimension === 'duration' 
+        ? this.ringChartData.reduce((sum, item) => sum + item.value, 0)
+        : this.ringChartTotal;
+      
+      // 先绘制背景圆环
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+      ctx.arc(centerX, centerY, innerRadius, 2 * Math.PI, 0, true); // 注意：这里参数顺序是反的
+      ctx.fillStyle = '#f0f0f0'; // 灰色背景
+      ctx.fill();
+      
+      let startAngle = -Math.PI / 2; // 从顶部开始
+      
+      // 绘制每个扇形，增加扇形间距
+      this.ringChartData.forEach((item, index) => {
+        const value = this.currentDimension === 'duration' ? item.value : item.count;
+        const percentage = total > 0 ? value / total : 0;
+        
+        // 为每个扇形添加小间距，使分块更明显
+        const spacing = 0.02; // 间距角度
+        const adjustedPercentage = percentage - (index < this.ringChartData.length - 1 ? spacing / (2 * Math.PI) : 0);
+        const endAngle = startAngle + (adjustedPercentage * 2 * Math.PI);
+        
+        // 绘制扇形
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+        ctx.lineTo(
+          centerX + innerRadius * Math.cos(endAngle), 
+          centerY + innerRadius * Math.sin(endAngle)
+        );
+        ctx.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
+        ctx.closePath();
+        ctx.fillStyle = item.color;
+        ctx.fill();
+        
+        // 如果不是最后一个扇形，绘制分隔线
+        if (index < this.ringChartData.length - 1) {
+          ctx.beginPath();
+          const separatorAngle = endAngle + spacing / 2;
+          const innerX = centerX + innerRadius * Math.cos(separatorAngle);
+          const innerY = centerY + innerRadius * Math.sin(separatorAngle);
+          const outerX = centerX + radius * Math.cos(separatorAngle);
+          const outerY = centerY + radius * Math.sin(separatorAngle);
+          
+          ctx.moveTo(innerX, innerY);
+          ctx.lineTo(outerX, outerY);
+          ctx.strokeStyle = '#ffffff'; // 白色分隔线
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+        
+        startAngle = endAngle + spacing; // 在扇形间添加间距
+      });
+      
+      // 绘制整体外边框
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // 绘制内圆边框
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
+      ctx.stroke();
+      
+      // 绘制标签
+      let labelStartAngle = -Math.PI / 2; // 从顶部开始
+      this.ringChartData.forEach(item => {
+        const value = this.currentDimension === 'duration' ? item.value : item.count;
+        const percentage = total > 0 ? value / total : 0;
+        const midAngle = labelStartAngle + (percentage * 2 * Math.PI) / 2; // 扇形中点角度
+        
+        // 计算连接线的起点（扇形边缘）
+        const lineStartRadius = radius; // 从外环边缘开始
+        const lineStartX = centerX + lineStartRadius * Math.cos(midAngle);
+        const lineStartY = centerY + lineStartRadius * Math.sin(midAngle);
+        
+        // 计算标签位置（在环形图外侧）
+        const labelRadius = radius + 35; // 在环形图外侧
+        const labelX = centerX + labelRadius * Math.cos(midAngle);
+        const labelY = centerY + labelRadius * Math.sin(midAngle);
+        
+        // 绘制连接线
+        ctx.beginPath();
+        ctx.moveTo(lineStartX, lineStartY);
+        // 延长连接线到标签位置
+        ctx.lineTo(labelX, labelY);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // 设置文本样式
+        ctx.fillStyle = '#000000'; // 黑色文字
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // 绘制标签文本
+        ctx.fillText(`${item.label}`, labelX, labelY - 10);
+        ctx.fillText(`${value}次`, labelX, labelY + 10);
+        
+        labelStartAngle = labelStartAngle + (percentage * 2 * Math.PI);
+      });
+    },
+    
+    // 环形图触摸事件
+    onRingChartTouchStart(e) {
+      // 处理触摸开始事件
+    },
+    
+    onRingChartTouchMove(e) {
+      // 处理触摸移动事件
+    },
+    
+    onRingChartTouchEnd(e) {
+      // 处理触摸结束事件
     }
   }
 }
@@ -477,29 +795,26 @@ export default {
   margin-bottom: 10rpx;
 }
 
-.bird-icon {
-  width: 30rpx;
-  height: 30rpx;
-  background-color: #FF6B8B;
-  border-radius: 50%;
-  margin-bottom: 10rpx;
-  position: relative;
-}
 
-.bird-icon::before {
-  content: '';
-  position: absolute;
-  width: 10rpx;
-  height: 10rpx;
-  background-color: #000000;
-  border-radius: 50%;
-  top: 8rpx;
-  left: 8rpx;
-}
 
 .bar-date {
   font-size: 20rpx;
   color: #666666;
+  margin-top: 10rpx;
+}
+
+/* 标签分布标题 */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
 }
 
 /* 标签分布 */
@@ -516,6 +831,11 @@ export default {
   justify-content: center;
   align-items: center;
   margin-bottom: 30rpx;
+}
+
+.nav-button--disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .nav-button {
@@ -544,18 +864,25 @@ export default {
 .dimension-switch {
   display: flex;
   justify-content: center;
-  gap: 20rpx;
+  gap: 10rpx;
   margin-bottom: 30rpx;
+  background-color: #f0f0f0;
+  border-radius: 50rpx;
+  padding: 10rpx;
 }
 
 .switch-button {
   padding: 15rpx 30rpx;
-  border-radius: 8rpx;
-  background-color: #f0f0f0;
+  border-radius: 50rpx;
+  background-color: transparent;
+  flex: 1;
+  text-align: center;
 }
 
 .switch-button--active {
-  background-color: #e0e0e0;
+  background-color: #ffffff;
+  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.1);
+  font-weight: bold;
 }
 
 .switch-text {
@@ -567,13 +894,23 @@ export default {
 .ring-chart-container {
   display: flex;
   margin-bottom: 30rpx;
+  padding: 0 20rpx; /* 防止图表超出边界 */
 }
 
 .ring-chart {
-  width: 300rpx;
-  height: 300rpx;
+  width: 250rpx;
+  height: 250rpx;
   position: relative;
-  margin-right: 40rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.ring-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 250rpx;
+  height: 250rpx;
 }
 
 .chart-center {
@@ -585,7 +922,7 @@ export default {
 }
 
 .center-value {
-  font-size: 32rpx;
+  font-size: 48rpx;
   font-weight: bold;
   color: #333333;
   display: block;
@@ -593,6 +930,11 @@ export default {
 }
 
 .center-label {
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.center-sublabel {
   font-size: 24rpx;
   color: #666666;
 }
@@ -643,6 +985,7 @@ export default {
   display: flex;
   flex-direction: column;
   justify-content: space-around;
+  min-width: 0; /* 确保flex项目不会超出容器 */
 }
 
 .label-item {
@@ -688,6 +1031,88 @@ export default {
   color: #666666;
 }
 
+/* 维度选择弹窗 */
+.dimension-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dimension-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.dimension-modal-content {
+  position: relative;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 40rpx 30rpx;
+  width: 80%;
+  max-width: 500rpx;
+  box-shadow: 0 20rpx 40rpx rgba(0, 0, 0, 0.3);
+}
+
+.dimension-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.dimension-modal-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.dimension-modal-close {
+  font-size: 40rpx;
+  color: #999;
+  width: 50rpx;
+  height: 50rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dimension-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.dimension-option {
+  padding: 25rpx 30rpx;
+  border-radius: 12rpx;
+  background-color: #f8f8f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dimension-option--active {
+  background-color: #e6f7ff;
+  border: 2rpx solid #1890ff;
+}
+
+.dimension-option-text {
+  font-size: 28rpx;
+  color: #333;
+}
+
 /* 按天查看 */
 .daily-view-toggle {
   display: flex;
@@ -696,6 +1121,159 @@ export default {
   padding: 20rpx;
   background-color: #f0f0f0;
   border-radius: 12rpx;
+}
+
+/* 时间分类选择弹窗 */
+.time-classification-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1001;
+  display: flex;
+  align-items: flex-end; /* 弹窗显示在底部 */
+}
+
+.time-classification-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.time-classification-content {
+  position: relative;
+  background-color: #ffffff;
+  border-radius: 20rpx 20rpx 0 0; /* 只有顶部圆角 */
+  width: 100%;
+  padding: 40rpx 30rpx 30rpx;
+  box-shadow: 0 -10rpx 20rpx rgba(0, 0, 0, 0.1);
+}
+
+.time-classification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.time-classification-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.time-classification-close {
+  font-size: 40rpx;
+  color: #999;
+  width: 50rpx;
+  height: 50rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-classification-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.picker-container {
+  position: relative;
+  height: 300rpx;
+  overflow: hidden;
+}
+
+.picker-view {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 60rpx;
+}
+
+.picker-item {
+  height: 75rpx;
+  line-height: 75rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.picker-overlay-top, .picker-overlay-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 112rpx;
+  z-index: 1;
+}
+
+.picker-overlay-top {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.5));
+}
+
+.picker-overlay-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.5));
+}
+
+.picker-highlight {
+  position: absolute;
+  top: 50%;
+  left: 60rpx;
+  right: 60rpx;
+  height: 75rpx;
+  transform: translateY(-50%);
+  border-top: 2rpx solid #e0e0e0;
+  border-bottom: 2rpx solid #e0e0e0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.time-classification-option {
+  padding: 25rpx 30rpx;
+  border-radius: 12rpx;
+  background-color: #f8f8f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-classification-option--active {
+  background-color: #e6f7ff;
+  border: 2rpx solid #1890ff;
+}
+
+.time-classification-option-text {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.time-classification-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.time-classification-confirm {
+  background-color: #000000;
+  color: #ffffff;
+  padding: 20rpx 60rpx;
+  border-radius: 50rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-classification-confirm-text {
+  font-size: 28rpx;
+  color: #ffffff;
+  font-weight: bold;
 }
 
 .toggle-text {

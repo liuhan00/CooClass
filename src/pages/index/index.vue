@@ -16,6 +16,10 @@
             <view class="walker-fuzz walker-fuzz--top"></view>
             <view class="walker-fuzz walker-fuzz--bottom"></view>
             <view class="walker-wing"></view>
+            <!-- 额外的羽毛细节 -->
+            <view class="walker-fuzz-detail walker-fuzz-detail--1"></view>
+            <view class="walker-fuzz-detail walker-fuzz-detail--2"></view>
+            <view class="walker-fuzz-detail walker-fuzz-detail--3"></view>
           </view>
           <view class="walker-head">
             <view class="walker-eye">
@@ -24,8 +28,20 @@
             </view>
             <view class="walker-beak"></view>
           </view>
-          <view class="walker-leg walker-leg--front"></view>
-          <view class="walker-leg walker-leg--back"></view>
+          <view class="walker-leg-group walker-leg-group--front">
+            <view class="walker-leg">
+              <view class="walker-thigh"></view>
+              <view class="walker-shin"></view>
+              <view class="walker-foot"></view>
+            </view>
+          </view>
+          <view class="walker-leg-group walker-leg-group--back">
+            <view class="walker-leg">
+              <view class="walker-thigh"></view>
+              <view class="walker-shin"></view>
+              <view class="walker-foot"></view>
+            </view>
+          </view>
         </view>
       </view>
       
@@ -573,8 +589,8 @@ export default {
     createChickBodies() {
       const count = CHICK_EXPRESSIONS.length
       // 在屏幕可见区域底部附近分布小鸡
-      const startY = this.playgroundHeight * 0.5  // 从屏幕50%高度开始
-      const visibleHeight = this.playgroundHeight * 0.4  // 在40%的垂直范围内分布
+      const startY = this.playgroundHeight * 0.8  // 从屏幕80%高度开始，更靠近底部
+      const visibleHeight = this.playgroundHeight * 0.15  // 在15%的垂直范围内分布，让小鸡更靠近底部
       // 重置映射表
       this.chickBodyMap = {}
       return CHICK_EXPRESSIONS.map((expression, index) => {
@@ -601,8 +617,8 @@ export default {
     },
     createWorldBounds() {
       const width = this.playgroundWidth
-      const height = this.playgroundHeight * 0.9  // 设置物理边界在屏幕90%高度处，更靠近底部
-      const floor = Bodies.rectangle(width / 2, height + 40, width, 80, {
+      const height = this.playgroundHeight * 0.95  // 设置物理边界在屏幕95%高度处，更靠近底部
+      const floor = Bodies.rectangle(width / 2, height + 20, width, 80, {
         isStatic: true,
         restitution: 0.2,
         friction: 0.1,
@@ -1848,8 +1864,11 @@ export default {
 
 .walker-fuzz {
   position: absolute;
-  background: #050505;
+  background: linear-gradient(135deg, #1a1a1a, #0f0f0f, #050505);
   opacity: 0.92;
+  border-radius: 50%;
+  box-shadow: inset 2rpx 2rpx 4rpx rgba(255, 255, 255, 0.1),
+              inset -2rpx -2rpx 4rpx rgba(0, 0, 0, 0.3);
 }
 
 .walker-fuzz--top {
@@ -1858,6 +1877,8 @@ export default {
   border-radius: 50%;
   top: -6rpx;
   left: 12rpx;
+  animation: fuzz-bob 3s ease-in-out infinite;
+  animation-delay: 0.5s;
 }
 
 .walker-fuzz--bottom {
@@ -1866,6 +1887,8 @@ export default {
   border-radius: 50%;
   bottom: -10rpx;
   left: -8rpx;
+  animation: fuzz-bob 3.5s ease-in-out infinite;
+  animation-delay: 1s;
 }
 
 .walker-wing {
@@ -1877,6 +1900,43 @@ export default {
   right: 22rpx;
   top: 46rpx;
   animation: flap 2s ease-in-out infinite;
+}
+
+/* 额外的羽毛细节 */
+.walker-fuzz-detail {
+  position: absolute;
+  background: linear-gradient(135deg, #222, #111, #0a0a0a);
+  border-radius: 50%;
+  opacity: 0.8;
+  box-shadow: inset 1rpx 1rpx 2rpx rgba(255, 255, 255, 0.1),
+              inset -1rpx -1rpx 2rpx rgba(0, 0, 0, 0.3);
+}
+
+.walker-fuzz-detail--1 {
+  width: 20rpx;
+  height: 16rpx;
+  top: 40rpx;
+  left: 40rpx;
+  animation: fuzz-bob 4s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+.walker-fuzz-detail--2 {
+  width: 16rpx;
+  height: 12rpx;
+  top: 70rpx;
+  left: 60rpx;
+  animation: fuzz-bob 3.8s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.walker-fuzz-detail--3 {
+  width: 18rpx;
+  height: 14rpx;
+  top: 90rpx;
+  left: 20rpx;
+  animation: fuzz-bob 4.2s ease-in-out infinite;
+  animation-delay: 0.8s;
 }
 
 .walker-head {
@@ -1969,23 +2029,29 @@ export default {
 }
 
 .walker-leg {
-  position: absolute;
-  width: 12rpx;
+  position: relative;
+  width: 16rpx;
   height: 80rpx;
-  background: #000000;
-  bottom: 6rpx;
-  border-radius: 999rpx;
-  transform-origin: top center;
-  animation: step 0.9s ease-in-out infinite;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.walker-leg--front {
+.walker-leg-group--front {
+  position: absolute;
   right: 68rpx;
+  bottom: 6rpx;
+  transform-origin: bottom center;
+  animation: leg-walk-front 0.9s ease-in-out infinite;
 }
 
-.walker-leg--back {
+.walker-leg-group--back {
+  position: absolute;
   right: 36rpx;
+  bottom: 6rpx;
   opacity: 0.7;
+  transform-origin: bottom center;
+  animation: leg-walk-back 0.9s ease-in-out infinite;
   animation-delay: 0.25s;
 }
 
@@ -2027,13 +2093,19 @@ export default {
 
 @keyframes step {
   0% {
-    transform: rotate(8deg);
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-8rpx) rotate(2deg);
   }
   50% {
-    transform: rotate(-6deg);
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-6rpx) rotate(-2deg);
   }
   100% {
-    transform: rotate(8deg);
+    transform: translateY(0) rotate(0deg);
   }
 }
 
@@ -2047,6 +2119,145 @@ export default {
   100% {
     transform: scaleX(1);
   }
+}
+
+/* 小鸡腿部各部分样式 */
+.walker-leg {
+  position: relative;
+  width: 16rpx;
+  height: 80rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.walker-thigh {
+  width: 14rpx;
+  height: 30rpx;
+  background: linear-gradient(to bottom, #5d4037, #4e342e);
+  border-radius: 6rpx 6rpx 0 0;
+  position: relative;
+  transform-origin: top center;
+  /* 前腿的动画 */
+  animation: thigh-anim-front 0.9s ease-in-out infinite;
+  will-change: transform;
+}
+
+.walker-leg-group--back .walker-thigh {
+  animation: thigh-anim-back 0.9s ease-in-out infinite;
+}
+
+.walker-shin {
+  width: 12rpx;
+  height: 30rpx;
+  background: linear-gradient(to bottom, #4e342e, #3e2723);
+  border-radius: 0 0 4rpx 4rpx;
+  position: relative;
+  margin-top: 2rpx;
+  transform-origin: top center;
+  /* 前腿的动画 */
+  animation: shin-anim-front 0.9s ease-in-out infinite;
+  will-change: transform;
+}
+
+.walker-leg-group--back .walker-shin {
+  animation: shin-anim-back 0.9s ease-in-out infinite;
+}
+
+.walker-foot {
+  width: 18rpx;
+  height: 8rpx;
+  background: #333;
+  border-radius: 4rpx;
+  position: relative;
+  margin-top: 4rpx;
+  transform-origin: left center;
+  /* 前腿的动画 */
+  animation: foot-anim-front 0.9s ease-in-out infinite;
+  will-change: transform;
+}
+
+.walker-leg-group--back .walker-foot {
+  animation: foot-anim-back 0.9s ease-in-out infinite;
+}
+
+@keyframes foot-step {
+  0% {
+    transform: rotate(10deg);
+  }
+  50% {
+    transform: rotate(-10deg);
+  }
+  100% {
+    transform: rotate(10deg);
+  }
+}
+
+/* 整体腿部走路动画 */
+@keyframes leg-walk-front {
+  0% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2rpx) rotate(0.5deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes leg-walk-back {
+  0% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2rpx) rotate(-0.5deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+/* 腿部走路动画 - 大腿相对静止，小腿和脚部摆动 */
+@keyframes thigh-anim-front {
+  0% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+  100% { transform: rotate(-2deg); }
+}
+
+@keyframes shin-anim-front {
+  0% { transform: rotate(-10deg); }
+  25% { transform: rotate(15deg); }
+  50% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+  100% { transform: rotate(-10deg); }
+}
+
+@keyframes foot-anim-front {
+  0% { transform: rotate(5deg); }
+  25% { transform: rotate(-10deg); }
+  50% { transform: rotate(5deg); }
+  75% { transform: rotate(-5deg); }
+  100% { transform: rotate(5deg); }
+}
+
+@keyframes thigh-anim-back {
+  0% { transform: rotate(2deg); }
+  50% { transform: rotate(-2deg); }
+  100% { transform: rotate(2deg); }
+}
+
+@keyframes shin-anim-back {
+  0% { transform: rotate(10deg); }
+  25% { transform: rotate(-15deg); }
+  50% { transform: rotate(10deg); }
+  75% { transform: rotate(-10deg); }
+  100% { transform: rotate(10deg); }
+}
+
+@keyframes foot-anim-back {
+  0% { transform: rotate(-5deg); }
+  25% { transform: rotate(10deg); }
+  50% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+  100% { transform: rotate(-5deg); }
+}
+
+/* 羽毛摆动动画 */
+@keyframes fuzz-bob {
+  0% { transform: translate(0, 0) rotate(0); }
+  25% { transform: translate(-1rpx, -1rpx) rotate(-0.5deg); }
+  50% { transform: translate(0, 0) rotate(0); }
+  75% { transform: translate(1rpx, -1rpx) rotate(0.5deg); }
+  100% { transform: translate(0, 0) rotate(0); }
 }
 
 /* 标签选择器样式 */

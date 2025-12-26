@@ -119,18 +119,13 @@
       <!-- 环形图 -->
       <view class="ring-chart-container">
         <view class="ring-chart">
-          <!-- 中心文本 -->
-          <view class="chart-center">
-            <text class="center-value">{{ ringChartTotal }}次</text>
-            <text class="center-sublabel">今日总次数</text>
-          </view>
+
           
           <!-- 环形图 -->
           <canvas 
+            :canvas-id="'ringChartCanvas' + currentDimension" 
             :id="'ringChartCanvas' + currentDimension" 
             class="ring-canvas" 
-            :canvas-id="'ringChartCanvas' + currentDimension" 
-            type="2d"
             @touchstart="onRingChartTouchStart"
             @touchmove="onRingChartTouchMove"
             @touchend="onRingChartTouchEnd"
@@ -205,6 +200,8 @@
 </template>
 
 <script>
+import * as echarts from 'echarts';
+
 export default {
   data() {
     return {
@@ -251,12 +248,14 @@ export default {
       // 环形图数据
       ringChartData: [
         { label: '专注', value: 30, color: '#000000', count: 30 }, // 黑色
-        { label: '阅读', value: 20, color: '#444444', count: 20 }, // 深灰
-        { label: '工作', value: 15, color: '#888888', count: 15 }, // 中灰
-        { label: '健身', value: '#BBBBBB', count: 10 }, // 浅灰
-        { label: '学习', value: '#DDDDDD', count: 5 }  // 极浅灰
+        { label: '阅读', value: 20, color: '#2196F3', count: 20 }, // 蓝色
+        { label: '工作', value: 15, color: '#FF9800', count: 15 }, // 橙色
+        { label: '健身', value: 10, color: '#9C27B0', count: 10 }, // 紫色
+        { label: '学习', value: 5, color: '#4CAF50', count: 5 }  // 绿色
       ],
-      ringChartTotal: 140 // 总次数
+      ringChartTotal: 140, // 总次数
+      ringChartInstance: null, // 环形图实例
+      chartCanvas: null // 图表canvas引用
     }
   },
   
@@ -414,150 +413,143 @@ export default {
     
     // 绘制环形图
     async drawRingChart() {
-      // 获取 Canvas 2D 上下文
-      const query = uni.createSelectorQuery().in(this);
-      const canvasNode = await new Promise(resolve => {
-        query.select('#ringChartCanvas' + this.currentDimension).node().exec(resolve);
-      });
+      // 确保DOM渲染完成
+      await this.$nextTick();
       
-      if (!canvasNode || !canvasNode[0] || !canvasNode[0].node) {
-        console.error('Canvas node not found');
-        return;
-      }
-      
-      const canvas = canvasNode[0].node;
-      const ctx = canvas.getContext('2d');
-      
-      // 设置canvas尺寸
-      canvas.width = 250;
-      canvas.height = 250;
-      
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      const radius = 70; // 外半径，减小使环更细
-      const innerRadius = 50; // 内半径，增大使环更细
-      
-      // 清除画布
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // 计算总值
-      const total = this.currentDimension === 'duration' 
-        ? this.ringChartData.reduce((sum, item) => sum + item.value, 0)
-        : this.ringChartTotal;
-      
-      // 先绘制背景圆环
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-      ctx.arc(centerX, centerY, innerRadius, 2 * Math.PI, 0, true); // 注意：这里参数顺序是反的
-      ctx.fillStyle = '#f0f0f0'; // 灰色背景
-      ctx.fill();
-      
-      let startAngle = -Math.PI / 2; // 从顶部开始
-      
-      // 绘制每个扇形，增加扇形间距
-      this.ringChartData.forEach((item, index) => {
-        const value = this.currentDimension === 'duration' ? item.value : item.count;
-        const percentage = total > 0 ? value / total : 0;
+      // 使用setTimeout确保元素完全渲染
+      setTimeout(() => {
+        // 获取canvas元素
+        const query = uni.createSelectorQuery().in(this);
+        const selector = '#ringChartCanvas' + this.currentDimension;
         
-        // 为每个扇形添加小间距，使分块更明显
-        const spacing = 0.02; // 间距角度
-        const adjustedPercentage = percentage - (index < this.ringChartData.length - 1 ? spacing / (2 * Math.PI) : 0);
-        const endAngle = startAngle + (adjustedPercentage * 2 * Math.PI);
-        
-        // 绘制扇形
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-        ctx.lineTo(
-          centerX + innerRadius * Math.cos(endAngle), 
-          centerY + innerRadius * Math.sin(endAngle)
-        );
-        ctx.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
-        ctx.closePath();
-        ctx.fillStyle = item.color;
-        ctx.fill();
-        
-        // 如果不是最后一个扇形，绘制分隔线
-        if (index < this.ringChartData.length - 1) {
-          ctx.beginPath();
-          const separatorAngle = endAngle + spacing / 2;
-          const innerX = centerX + innerRadius * Math.cos(separatorAngle);
-          const innerY = centerY + innerRadius * Math.sin(separatorAngle);
-          const outerX = centerX + radius * Math.cos(separatorAngle);
-          const outerY = centerY + radius * Math.sin(separatorAngle);
+        query.select(selector).boundingClientRect((rect) => {
+          if (!rect || rect.width === 0 || rect.height === 0) {
+            console.error('无法获取环形图canvas元素或元素尺寸为0');
+            return;
+          }
           
-          ctx.moveTo(innerX, innerY);
-          ctx.lineTo(outerX, outerY);
-          ctx.strokeStyle = '#ffffff'; // 白色分隔线
-          ctx.lineWidth = 3;
+          // 创建canvas上下文
+          const ctx = uni.createCanvasContext('ringChartCanvas' + this.currentDimension, this);
+          
+          // 使用Canvas API绘制环形图
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+          // 计算半径时考虑标签位置，确保标签不会超出画布
+          const maxRadius = Math.min(rect.width, rect.height) / 2 * 0.8; // 最大半径不超过画布的一半
+          const radius = Math.min(maxRadius - 60, Math.min(rect.width, rect.height) * 0.25); // 减小半径，为中央留出更多空间
+          const innerRadius = radius * 0.6; // 减小内半径，增加环形宽度
+          
+          // 清除画布
+          ctx.clearRect(0, 0, rect.width, rect.height);
+          
+          // 计算总值
+          const total = this.currentDimension === 'duration' 
+            ? this.ringChartData.reduce((sum, item) => sum + item.value, 0)
+            : this.ringChartTotal;
+          
+          // 绘制背景圆环
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+          ctx.arc(centerX, centerY, innerRadius, 2 * Math.PI, 0, true);
+          ctx.setFillStyle('#f0f0f0');
+          ctx.fill();
+          
+          // 绘制每个扇形
+          let currentAngle = -Math.PI / 2; // 从顶部开始
+          
+          this.ringChartData.forEach((item, index) => {
+            const value = this.currentDimension === 'duration' ? item.value : item.count;
+            const percentage = total > 0 ? value / total : 0;
+            const angle = percentage * 2 * Math.PI;
+            
+            // 绘制扇形
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + angle);
+            ctx.lineTo(
+              centerX + innerRadius * Math.cos(currentAngle + angle),
+              centerY + innerRadius * Math.sin(currentAngle + angle)
+            );
+            ctx.arc(centerX, centerY, innerRadius, currentAngle + angle, currentAngle, true);
+            ctx.closePath();
+            
+            ctx.setFillStyle(item.color);
+            ctx.fill();
+            
+            // 绘制扇形边框
+            ctx.setStrokeStyle('#ffffff');
+            ctx.setLineWidth(2);
+            ctx.stroke();
+            
+            // 计算标签位置
+            const midAngle = currentAngle + angle / 2;
+            // 确保标签位置不会超出画布边界
+            const maxLabelRadius = Math.min(rect.width, rect.height) / 2 * 0.9; // 标签半径不超过画布的一半
+            const labelRadius = Math.min(radius + 40, maxLabelRadius);
+            const labelX = centerX + labelRadius * Math.cos(midAngle);
+            const labelY = centerY + labelRadius * Math.sin(midAngle);
+            
+            // 绘制连接线
+            ctx.beginPath();
+            ctx.moveTo(centerX + radius * Math.cos(midAngle), centerY + radius * Math.sin(midAngle));
+            ctx.lineTo(labelX, labelY);
+            ctx.setStrokeStyle('#000000');
+            ctx.setLineWidth(1);
+            ctx.stroke();
+            
+            // 绘制标签文字
+            ctx.setFillStyle('#000000');
+            ctx.setFontSize(16);
+            ctx.setTextAlign('center');
+            ctx.setTextBaseline('middle');
+            
+            // 标签文字分两行显示
+            ctx.setFontSize(16); // 恢复字体大小
+            ctx.setTextAlign('center');
+            ctx.fillText(item.label, labelX, labelY - 12);
+            ctx.fillText(`${value}次`, labelX, labelY + 12);
+            
+            currentAngle += angle;
+          });
+          
+          // 绘制外边框
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+          ctx.setStrokeStyle('#ffffff');
+          ctx.setLineWidth(2);
           ctx.stroke();
-        }
-        
-        startAngle = endAngle + spacing; // 在扇形间添加间距
-      });
-      
-      // 绘制整体外边框
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      
-      // 绘制内圆边框
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
-      ctx.stroke();
-      
-      // 绘制标签
-      let labelStartAngle = -Math.PI / 2; // 从顶部开始
-      this.ringChartData.forEach(item => {
-        const value = this.currentDimension === 'duration' ? item.value : item.count;
-        const percentage = total > 0 ? value / total : 0;
-        const midAngle = labelStartAngle + (percentage * 2 * Math.PI) / 2; // 扇形中点角度
-        
-        // 计算连接线的起点（扇形边缘）
-        const lineStartRadius = radius; // 从外环边缘开始
-        const lineStartX = centerX + lineStartRadius * Math.cos(midAngle);
-        const lineStartY = centerY + lineStartRadius * Math.sin(midAngle);
-        
-        // 计算标签位置（在环形图外侧）
-        const labelRadius = radius + 35; // 在环形图外侧
-        const labelX = centerX + labelRadius * Math.cos(midAngle);
-        const labelY = centerY + labelRadius * Math.sin(midAngle);
-        
-        // 绘制连接线
-        ctx.beginPath();
-        ctx.moveTo(lineStartX, lineStartY);
-        // 延长连接线到标签位置
-        ctx.lineTo(labelX, labelY);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        
-        // 设置文本样式
-        ctx.fillStyle = '#000000'; // 黑色文字
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        // 绘制标签文本
-        ctx.fillText(`${item.label}`, labelX, labelY - 10);
-        ctx.fillText(`${value}次`, labelX, labelY + 10);
-        
-        labelStartAngle = labelStartAngle + (percentage * 2 * Math.PI);
-      });
+          
+          // 绘制内边框
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
+          ctx.stroke();
+          
+          // 中心区域留空，不绘制任何内容，为后续添加自定义内容预留空间
+          
+          // 调用draw方法渲染内容
+          ctx.draw(true); // 传入true参数以确保绘制
+        }).exec();
+      }, 200);
     },
-    
+        
     // 环形图触摸事件
     onRingChartTouchStart(e) {
       // 处理触摸开始事件
     },
-    
+        
     onRingChartTouchMove(e) {
       // 处理触摸移动事件
     },
-    
+        
     onRingChartTouchEnd(e) {
       // 处理触摸结束事件
+    },
+    
+    // 页面卸载时清理图表实例
+    onUnload() {
+      if (this.ringChartInstance) {
+        this.ringChartInstance.dispose();
+        this.ringChartInstance = null;
+      }
     }
   }
 }
@@ -893,15 +885,15 @@ export default {
 /* 环形图 */
 .ring-chart-container {
   display: flex;
-  margin-bottom: 30rpx;
-  padding: 0 20rpx; /* 防止图表超出边界 */
+  justify-content: center; /* 让内容居中 */
+  align-items: center; /* 垂直居中 */
+  margin: 20rpx 0; /* 调整间距，与内容块协调 */
 }
 
 .ring-chart {
-  width: 250rpx;
-  height: 250rpx;
+  width: 600rpx;
+  height: 600rpx;
   position: relative;
-  margin-right: 20rpx;
   flex-shrink: 0;
 }
 
@@ -909,8 +901,8 @@ export default {
   position: absolute;
   top: 0;
   left: 0;
-  width: 250rpx;
-  height: 250rpx;
+  width: 600rpx;
+  height: 600rpx;
 }
 
 .chart-center {
@@ -921,23 +913,14 @@ export default {
   text-align: center;
 }
 
-.center-value {
-  font-size: 48rpx;
-  font-weight: bold;
-  color: #333333;
-  display: block;
-  margin-bottom: 10rpx;
-}
+
 
 .center-label {
   font-size: 24rpx;
   color: #666666;
 }
 
-.center-sublabel {
-  font-size: 24rpx;
-  color: #666666;
-}
+
 
 .chart-sectors {
   width: 100%;

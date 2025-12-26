@@ -99,17 +99,18 @@ export default {
       formData: {
         title: '',
         date: this.getCurrentDate(),
-        themeColor: '#FF6B8B', // 默认粉色
+        themeColor: '#FF6B8B', // 默认颜色值
+        themeColorNumber: 1, // 默认颜色数字
         selectedIcons: [] // 选中的图标ID数组
       },
       
       // 颜色选项
       colorOptions: [
-        { name: '粉色', value: '#FF6B8B' },
-        { name: '青绿色', value: '#4ECDC4' },
-        { name: '黄色', value: '#FFD166' },
-        { name: '紫色', value: '#9B5DE5' },
-        { name: '蓝色', value: '#00BBF9' }
+        { name: '粉色', value: '#FF6B8B', number: 1 },
+        { name: '青绿色', value: '#4ECDC4', number: 2 },
+        { name: '黄色', value: '#FFD166', number: 3 },
+        { name: '紫色', value: '#9B5DE5', number: 4 },
+        { name: '蓝色', value: '#00BBF9', number: 5 }
       ],
       
       // 标签选项
@@ -152,8 +153,10 @@ export default {
       // 根据类型切换默认主题色
       if (type === 'countdown') {
         this.formData.themeColor = '#FF6B8B'
+        this.formData.themeColorNumber = 1 // 粉色
       } else {
         this.formData.themeColor = '#4ECDC4'
+        this.formData.themeColorNumber = 2 // 青绿色
       }
     },
     
@@ -165,6 +168,11 @@ export default {
     // 选择主题颜色
     selectColor(color) {
       this.formData.themeColor = color
+      // 根据颜色值查找对应的数字
+      const selectedColor = this.colorOptions.find(option => option.value === color)
+      if (selectedColor) {
+        this.formData.themeColorNumber = selectedColor.number
+      }
     },
     
     // 切换图标选择状态
@@ -198,8 +206,14 @@ export default {
         return
       }
       
+      // 准备发送给后端的数据
+      const submitData = {
+        ...this.formData,
+        themeColor: this.formData.themeColorNumber // 发送颜色数字而非颜色值
+      }
+      
       // 提交表单数据
-      console.log('提交表单数据:', this.formData)
+      console.log('提交表单数据:', submitData)
       
       // 这里应该调用API保存数据
       uni.showToast({

@@ -74,6 +74,13 @@
 				"navigationBarTitleText": "意见与反馈",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/focus-list/index",
+			"style": {
+				"navigationBarTitleText": "专注记录",
+				"navigationStyle": "default"
+			}
 		}
 	],
 	"globalStyle": {

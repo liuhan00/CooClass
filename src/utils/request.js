@@ -88,16 +88,63 @@ function getUserInfo() {
 // 更新用户信息
 function updateUserInfo(data) {
   return request({
-    url: '/api/auth/update-user-info',
+    url: '/api/auth/user-info',
+    method: 'PUT',
+    data: data
+  });
+}
+
+// 注销账号
+function deleteAccount() {
+  return request({
+    url: '/api/user/account',
+    method: 'DELETE'
+  });
+}
+
+// 开始专注
+function startFocus(data) {
+  return request({
+    url: '/api/focus/start',
     method: 'POST',
     data: data
   });
 }
 
+// 结束专注
+function endFocus(data) {
+  return request({
+    url: '/api/focus/end',
+    method: 'POST',
+    data: data
+  });
+}
+
+// 获取专注记录列表
+function getFocusList(params = {}) {
+  // 将参数转换为查询字符串
+  const queryString = Object.keys(params)
+    .filter(key => params[key] !== undefined && params[key] !== null)
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .join('&');
+  
+  const url = queryString ? `/api/focus/list?${queryString}` : '/api/focus/list';
+  
+  return request({
+    url: url,
+    method: 'GET'
+  });
+}
+
+// 默认导出
 export default {
   request,
   wechatLogin,
   // guestLogin,  // 已禁用 - 游客登录不再使用后端接口
   getUserInfo,
-  updateUserInfo
+  updateUserInfo,
+  deleteAccount
 };
+
+// 命名导出专注功能相关API
+export { startFocus, endFocus, getFocusList };

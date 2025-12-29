@@ -7,6 +7,7 @@
       </view>
       <text class="nav-title">编辑资料</text>
       <view class="nav-right">
+        <text class="view-records-btn" @tap="viewFocusRecords">记录</text>
         <text class="save-btn" @tap="saveProfile">保存</text>
       </view>
     </view>
@@ -76,6 +77,13 @@ export default {
   },
   
   methods: {
+    // 查看专注记录
+    viewFocusRecords() {
+      uni.navigateTo({
+        url: '/pages/focus-list/index'
+      });
+    },
+    
     // 初始化用户数据
     async initUserData() {
       try {
@@ -96,19 +104,38 @@ export default {
         // 从API获取用户信息
         const response = await request.getUserInfo();
         
-        if (response.statusCode === 200 && response.data.success) {
+        if (response.statusCode === 200 && response.data.code === 200) {
           // 更新用户信息
+          const userData = response.data.data;
           this.userInfo = {
-            avatar: response.data.data.avatar || this.userInfo.avatar,
-            nickname: response.data.data.nickname || this.userInfo.nickname,
-            bio: response.data.data.bio || this.userInfo.bio,
-            birthday: response.data.data.birthday || this.userInfo.birthday
+            avatar: userData.avatar || this.userInfo.avatar,
+            nickname: userData.nickname || this.userInfo.nickname,
+            bio: userData.bio || this.userInfo.bio,
+            birthday: userData.birthday || this.userInfo.birthday
           };
         } else {
+          console.error('获取用户信息失败:', response.data);
           uni.showToast({
             title: response.data.message || '获取用户信息失败',
             icon: 'none'
           });
+          
+          // 如果是用户ID错误，可能需要重新登录
+          if (response.data.message && response.data.message.includes('用户ID不能为空')) {
+            uni.showModal({
+              title: '提示',
+              content: '用户信息异常，请重新登录',
+              confirmText: '去登录',
+              cancelText: '取消',
+              success: (res) => {
+                if (res.confirm) {
+                  uni.navigateTo({
+                    url: '/pages/login/index'
+                  });
+                }
+              }
+            });
+          }
         }
       } catch (error) {
         console.error('获取用户信息失败:', error);
@@ -254,7 +281,7 @@ export default {
         // 调用API保存用户资料
         const response = await request.updateUserInfo(this.userInfo);
         
-        if (response.statusCode === 200 && response.data.success) {
+        if (response.statusCode === 200 && response.data.code === 200) {
           uni.showToast({
             title: '资料保存成功',
             icon: 'success'
@@ -277,7 +304,7 @@ export default {
         console.error('保存用户资料失败:', error);
         
         // 检查是否是401未授权错误
-        if (error.statusCode === 401) {
+        if (error.statusCode === 401 || (error.errMsg && error.errMsg.includes('401'))) {
           // 用户未登录或token过期，跳转到登录页面
           uni.showModal({
             title: '提示',
@@ -349,6 +376,14 @@ page {
   font-size: 32rpx;
   font-weight: bold;
   color: #333333;
+}
+    
+.view-records-btn {
+  font-size: 28rpx;
+  color: #666666;
+  margin-right: 30rpx;
+  padding: 10rpx 15rpx;
+  border-radius: 8rpx;
 }
 
 .nav-right {

@@ -65,6 +65,7 @@
 
 <script>
 import Matter from 'matter-js'
+import { startFocus, endFocus } from '@/utils/request.js'
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
@@ -93,6 +94,10 @@ export default {
       timer: null,
       // 页面来源参数
       fromPage: '',
+      
+      // 专注相关数据
+      focusId: null,
+      startTime: null,
       
       // 小鸡物理引擎相关数据
       chicks: [],
@@ -400,7 +405,36 @@ export default {
     },
     
     // 开始计时
-    startTimer() {
+    async startTimer() {
+      // 记录开始时间
+      this.startTime = Date.now();
+      
+      try {
+        // 调用后端开始专注API
+        const response = await startFocus({
+          duration: this.countdown,
+          scene: '学习', // 可以从首页传递场景参数
+          startTime: this.startTime
+        });
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          this.focusId = response.data.data.focusId; // 假设后端返回focusId
+          console.log('开始专注成功', response.data);
+        } else {
+          console.error('开始专注失败:', response.data);
+          uni.showToast({
+            title: response.data.message || '开始专注失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('开始专注请求失败:', error);
+        uni.showToast({
+          title: '网络请求失败',
+          icon: 'none'
+        });
+      }
+      
       this.isTiming = true;
       
       // 启动计时器
@@ -424,11 +458,35 @@ export default {
     },
     
     // 结束计时（手动结束）
-    endTimer() {
+    async endTimer() {
       this.isTiming = false;
       if (this.timer) {
         clearInterval(this.timer);
         this.timer = null;
+      }
+      
+      try {
+        // 调用后端结束专注API
+        const response = await endFocus({
+          focusId: this.focusId,
+          endTime: Date.now()
+        });
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          console.log('结束专注成功', response.data);
+        } else {
+          console.error('结束专注失败:', response.data);
+          uni.showToast({
+            title: response.data.message || '结束专注失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('结束专注请求失败:', error);
+        uni.showToast({
+          title: '网络请求失败',
+          icon: 'none'
+        });
       }
       
       // 跳转到小鸡死亡页面
@@ -438,18 +496,41 @@ export default {
     },
     
     // 完成计时（时间自然结束）
-    finishTimer() {
+    async finishTimer() {
       this.isTiming = false;
       if (this.timer) {
         clearInterval(this.timer);
         this.timer = null;
       }
       
-      // 可以在这里添加完成计时的逻辑
-      uni.showToast({
-        title: '专注完成！',
-        icon: 'success'
-      });
+      try {
+        // 调用后端结束专注API
+        const response = await endFocus({
+          focusId: this.focusId,
+          endTime: Date.now()
+        });
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          console.log('结束专注成功', response.data);
+          // 专注完成，显示成功提示
+          uni.showToast({
+            title: '专注完成！',
+            icon: 'success'
+          });
+        } else {
+          console.error('结束专注失败:', response.data);
+          uni.showToast({
+            title: response.data.message || '专注完成但记录失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('结束专注请求失败:', error);
+        uni.showToast({
+          title: '网络请求失败',
+          icon: 'none'
+        });
+      }
       
       // 返回首页
       setTimeout(() => {

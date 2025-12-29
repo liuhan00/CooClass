@@ -17,6 +17,13 @@
     <!-- 账号设置区块 -->
     <view class="settings-section">
       <text class="section-title">账号设置</text>
+      <view class="setting-item" @tap="viewFocusRecords">
+        <view class="setting-content">
+          <text class="setting-title">专注记录</text>
+          <text class="setting-desc">查看您的专注历史记录</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
       <view class="setting-item" @tap="showLogoutModal = true">
         <view class="setting-content">
           <text class="setting-title">注销账号</text>
@@ -115,26 +122,61 @@ export default {
   },
   
   methods: {
+    // 查看专注记录
+    viewFocusRecords() {
+      uni.navigateTo({
+        url: '/pages/focus-list/index'
+      });
+    },
+    
     // 添加新的方法来处理注销弹窗
     closeLogoutModal() {
       this.showLogoutModal = false;
     },
     
-    confirmLogout() {
-      uni.showToast({
-        title: '账号已注销',
-        icon: 'none'
-      });
-      // 这里可以调用注销账号的API
-      // api.logoutAccount();
-      
-      // 关闭弹窗
-      this.showLogoutModal = false;
-      
-      // 可以跳转到登录页面
-      // uni.redirectTo({
-      //   url: '/pages/login/index'
-      // });
+    async confirmLogout() {
+      try {
+        uni.showLoading({
+          title: '注销中...'
+        });
+        
+        // 调用注销账号API
+        const response = await request.deleteAccount();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          uni.showToast({
+            title: '账号已注销',
+            icon: 'success'
+          });
+          
+          // 清除本地存储的用户信息和token
+          uni.removeStorageSync('userInfo');
+          uni.removeStorageSync('token');
+          
+          // 关闭弹窗
+          this.showLogoutModal = false;
+          
+          // 跳转到登录页面
+          setTimeout(() => {
+            uni.redirectTo({
+              url: '/pages/login/index'
+            });
+          }, 1500);
+        } else {
+          uni.showToast({
+            title: response.data.message || '注销失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('注销账号失败:', error);
+        uni.showToast({
+          title: '注销失败，请重试',
+          icon: 'none'
+        });
+      } finally {
+        uni.hideLoading();
+      }
     },
     
     // 获取用户信息
@@ -157,28 +199,49 @@ export default {
         // 从API获取用户信息
         const response = await request.getUserInfo();
         
-        if (response.statusCode === 200 && response.data.success) {
+        if (response.statusCode === 200 && response.data.code === 200) {
           // 更新用户信息
+          const userData = response.data.data;
           this.userInfo = {
-            username: response.data.data.nickname || response.data.data.username || this.userInfo.username,
-            userId: response.data.data.userId || response.data.data.id || this.userInfo.userId,
-            avatar: response.data.data.avatar || this.userInfo.avatar
+            username: userData.nickname || userData.username || this.userInfo.username,
+            userId: userData.userId || userData.id || this.userInfo.userId,
+            avatar: userData.avatar || this.userInfo.avatar,
+            bio: userData.bio || '',
+            birthday: userData.birthday || ''
           };
         } else {
+          console.error('获取用户信息失败:', response.data);
           uni.showToast({
             title: response.data.message || '获取用户信息失败',
             icon: 'none'
           });
+          
+          // 如果是用户ID错误，可能需要重新登录
+          if (response.data.message && response.data.message.includes('用户ID不能为空')) {
+            uni.showModal({
+              title: '提示',
+              content: '用户信息异常，请重新登录',
+              confirmText: '去登录',
+              cancelText: '取消',
+              success: (res) => {
+                if (res.confirm) {
+                  uni.navigateTo({
+                    url: '/pages/login/index'
+                  });
+                }
+              }
+            });
+          }
         }
       } catch (error) {
         console.error('获取用户信息失败:', error);
         
         // 检查是否是401未授权错误
-        if (error.statusCode === 401) {
+        if (error.statusCode === 401 || error.errMsg) {
           // 用户未登录或token过期，跳转到登录页面
           uni.showModal({
             title: '提示',
-            content: '您还未登录，请先登录',
+            content: '您还未登录或登录已过期，请先登录',
             confirmText: '去登录',
             cancelText: '取消',
             success: (res) => {
@@ -514,5 +577,9 @@ export default {
 
 .confirm-button:active {
   background-color: #333333;
+}
+
+.setting-item:focus-within {
+  background-color: #f5f5f5;
 }
 </style>

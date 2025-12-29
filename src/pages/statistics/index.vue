@@ -6,12 +6,12 @@
       <view class="focus-cards">
         <view class="focus-card focus-card--today">
           <text class="card-label">今日专注</text>
-          <text class="card-value">75</text>
+          <text class="card-value">{{ todayDuration }}</text>
           <text class="card-unit">分钟</text>
         </view>
         <view class="focus-card focus-card--total">
           <text class="card-label">累计专注</text>
-          <text class="card-value">120</text>
+          <text class="card-value">{{ totalDuration }}</text>
           <text class="card-unit">分钟</text>
         </view>
       </view>
@@ -20,11 +20,11 @@
       <view class="failure-section">
         <view class="failure-item">
           <text class="failure-label">今日失败</text>
-          <text class="failure-value">2</text>
+          <text class="failure-value">{{ todayFailures }}</text>
         </view>
         <view class="failure-item">
           <text class="failure-label">累计失败</text>
-          <text class="failure-value failure-value--highlight">15</text>
+          <text class="failure-value failure-value--highlight">{{ totalFailures }}</text>
         </view>
       </view>
     </view>
@@ -119,9 +119,6 @@
       <!-- 环形图 -->
       <view class="ring-chart-container">
         <view class="ring-chart">
-
-          
-          <!-- 环形图 -->
           <canvas 
             :canvas-id="'ringChartCanvas' + timestamp" 
             :id="'ringChartCanvas' + timestamp" 
@@ -133,75 +130,74 @@
           ></canvas>
         </view>
       </view>
-      
+    </view>
 
-    </view>
-  
-  <!-- 维度选择弹窗 -->
-  <view class="dimension-modal" v-if="showDimensionModal" @tap="closeDimensionModal">
-    <view class="dimension-modal-overlay" @tap.stop=""></view>
-    <view class="dimension-modal-content" @tap.stop="">
-      <view class="dimension-modal-header">
-        <text class="dimension-modal-title">选择分类类型</text>
-        <view class="dimension-modal-close" @tap="closeDimensionModal">×</view>
-      </view>
-      <view class="dimension-modal-body">
-        <view 
-          class="dimension-option" 
-          :class="{ 'dimension-option--active': currentDimension === 'duration' }"
-          @tap="selectDimension('duration')"
-        >
-          <text class="dimension-option-text">时长</text>
+    <!-- 维度选择弹窗 -->
+    <view class="dimension-modal" v-if="showDimensionModal" @tap="closeDimensionModal">
+      <view class="dimension-modal-overlay" @tap.stop=""></view>
+      <view class="dimension-modal-content" @tap.stop="">
+        <view class="dimension-modal-header">
+          <text class="dimension-modal-title">选择分类类型</text>
+          <view class="dimension-modal-close" @tap="closeDimensionModal">×</view>
         </view>
-        <view 
-          class="dimension-option" 
-          :class="{ 'dimension-option--active': currentDimension === 'count' }"
-          @tap="selectDimension('count')"
-        >
-          <text class="dimension-option-text">次数</text>
-        </view>
-      </view>
-    </view>
-  </view>
-  
-  <!-- 时间分类选择弹窗 -->
-  <view class="time-classification-modal" v-if="showTimeClassificationModal" @tap="closeTimeClassificationModal">
-    <view class="time-classification-overlay" @tap.stop=""></view>
-    <view class="time-classification-content" @tap.stop="">
-      <view class="time-classification-header">
-        <text class="time-classification-title">按时间分类</text>
-        <view class="time-classification-close" @tap="closeTimeClassificationModal">×</view>
-      </view>
-      <view class="time-classification-body">
-        <view class="picker-container">
-          <view class="picker-overlay-top"></view>
-          <view class="picker-overlay-bottom"></view>
-          <picker-view 
-            class="picker-view" 
-            :value="pickerValue" 
-            @change="onPickerChange"
+        <view class="dimension-modal-body">
+          <view 
+            class="dimension-option" 
+            :class="{ 'dimension-option--active': currentDimension === 'duration' }"
+            @tap="selectDimension('duration')"
           >
-            <picker-view-column>
-              <view class="picker-item" v-for="item in timeClassificationOptions" :key="item.value">
-                {{ item.label }}
-              </view>
-            </picker-view-column>
-          </picker-view>
-          <view class="picker-highlight"></view>
+            <text class="dimension-option-text">时长</text>
+          </view>
+          <view 
+            class="dimension-option" 
+            :class="{ 'dimension-option--active': currentDimension === 'count' }"
+            @tap="selectDimension('count')"
+          >
+            <text class="dimension-option-text">次数</text>
+          </view>
         </view>
       </view>
-      <view class="time-classification-footer">
-        <view class="time-classification-confirm" @tap="finishTimeClassification">
-          <text class="time-classification-confirm-text">完成</text>
+    </view>
+    
+    <!-- 时间分类选择弹窗 -->
+    <view class="time-classification-modal" v-if="showTimeClassificationModal" @tap="closeTimeClassificationModal">
+      <view class="time-classification-overlay" @tap.stop=""></view>
+      <view class="time-classification-content" @tap.stop="">
+        <view class="time-classification-header">
+          <text class="time-classification-title">按时间分类</text>
+          <view class="time-classification-close" @tap="closeTimeClassificationModal">×</view>
+        </view>
+        <view class="time-classification-body">
+          <view class="picker-container">
+            <view class="picker-overlay-top"></view>
+            <view class="picker-overlay-bottom"></view>
+            <picker-view 
+              class="picker-view" 
+              :value="pickerValue" 
+              @change="onPickerChange"
+            >
+              <picker-view-column>
+                <view class="picker-item" v-for="item in timeClassificationOptions" :key="item.value">
+                  {{ item.label }}
+                </view>
+              </picker-view-column>
+            </picker-view>
+            <view class="picker-highlight"></view>
+          </view>
+        </view>
+        <view class="time-classification-footer">
+          <view class="time-classification-confirm" @tap="finishTimeClassification">
+            <text class="time-classification-confirm-text">完成</text>
+          </view>
         </view>
       </view>
     </view>
   </view>
-</view>
 </template>
 
 <script>
 import * as echarts from 'echarts';
+import { getFocusList } from '@/utils/request.js'
 
 export default {
   data() {
@@ -223,87 +219,189 @@ export default {
       timestamp: Date.now(), // 用于强制刷新canvas
       
       // 柱状图数据 - 时长
-      durationData: [
-        { date: '12.23', height: 80, value: 30 },
-        { date: '12.24', height: 120, value: 45 },
-        { date: '12.25', height: 60, value: 20 },
-        { date: '12.26', height: 100, value: 35 },
-        { date: '12.27', height: 140, value: 50 },
-        { date: '12.28', height: 90, value: 32 },
-        { date: '12.29', height: 110, value: 40 },
-        { date: '12.30', height: 70, value: 25 },
-        { date: '12.31', height: 130, value: 48 }
-      ],
+      durationData: [],
       // 柱状图数据 - 次数
-      countData: [
-        { date: '12.23', height: 70, value: 8 },
-        { date: '12.24', height: 100, value: 12 },
-        { date: '12.25', height: 50, value: 5 },
-        { date: '12.26', height: 90, value: 10 },
-        { date: '12.27', height: 120, value: 15 },
-        { date: '12.28', height: 80, value: 7 },
-        { date: '12.29', height: 100, value: 11 },
-        { date: '12.30', height: 60, value: 4 },
-        { date: '12.31', height: 110, value: 13 }
-      ],
+      countData: [],
       
       // 环形图数据
-      ringChartData: [
-        { label: '专注', value: 120, color: '#000000', count: 8 }, // 黑色 - 时长120分钟，次数8次
-        { label: '阅读', value: 90, color: '#2196F3', count: 12 }, // 蓝色 - 时长90分钟，次数12次
-        { label: '工作', value: 150, color: '#FF9800', count: 10 }, // 橙色 - 时长150分钟，次数10次
-        { label: '健身', value: 60, color: '#9C27B0', count: 6 }, // 紫色 - 时长60分钟，次数6次
-        { label: '学习', value: 180, color: '#4CAF50', count: 15 }  // 绿色 - 时长180分钟，次数15次
-      ],
-      ringChartTotal: 51, // 总次数（当显示次数时的总数）
+      ringChartData: [],
+      ringChartTotal: 0, // 总次数（当显示次数时的总数）
       ringChartInstance: null, // 环形图实例
       chartCanvas: null, // 图表canvas引用
-      showRingChart: true // 控制环形图显示，用于强制重绘
+      showRingChart: true, // 控制环形图显示，用于强制重绘
+      
+      // 专注记录数据
+      focusRecords: [],
+      loading: false,
+      
+      // 统计数据
+      todayDuration: 0,
+      totalDuration: 0,
+      todayFailures: 0,
+      totalFailures: 0
     }
   },
   
   onLoad() {
     this.initDates();
-    this.$nextTick(() => {
-      setTimeout(() => {
-        this.drawRingChart();
-      }, 100);
-    });
-  },
-  
-  computed: {
-    barData() {
-      return this.currentDimension === 'duration' ? this.durationData : this.countData;
-    },
-    
-    dimensionText() {
-      return this.currentDimension === 'duration' ? '时长' : '次数';
-    },
-    
-    dimensionSubtitle() {
-      const total = this.currentDimension === 'duration' 
-        ? '1小时' 
-        : '15次';
-      return `累计${total}`;
-    },
-    
-    timeClassificationText() {
-      switch(this.timeClassification) {
-        case 'day':
-          return '按天查看';
-        case 'week':
-          return '按周查看';
-        case 'month':
-          return '按月查看';
-        case 'year':
-          return '按年查看';
-        default:
-          return '按天查看';
-      }
-    }
+    this.loadFocusData();
   },
   
   methods: {
+    // 加载专注数据
+    async loadFocusData() {
+      this.loading = true;
+      try {
+        // 获取专注记录
+        const response = await getFocusList({
+          page: 1,
+          size: 100 // 获取最近的100条记录
+        });
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          this.focusRecords = response.data.data || [];
+          this.processFocusData();
+          
+          // 等待DOM更新后绘制图表
+          this.$nextTick(() => {
+            setTimeout(() => {
+              this.drawRingChart();
+            }, 100);
+          });
+        } else {
+          console.error('获取专注记录失败:', response.data);
+          uni.showToast({
+            title: response.data.message || '获取专注记录失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('获取专注记录失败:', error);
+        uni.showToast({
+          title: '网络请求失败',
+          icon: 'none'
+        });
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    // 处理专注数据
+    processFocusData() {
+      // 计算今日和累计专注数据
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+      
+      let todayDuration = 0;
+      let totalDuration = 0;
+      let todayFailures = 0;
+      let totalFailures = 0;
+      
+      // 按日期和场景分组数据
+      const dateGroups = {};
+      const sceneGroups = {};
+      
+      this.focusRecords.forEach(record => {
+        // 计算日期（只取日期部分）
+        const recordDate = new Date(record.startTime);
+        const dateStr = `${recordDate.getFullYear()}-${(recordDate.getMonth() + 1).toString().padStart(2, '0')}-${recordDate.getDate().toString().padStart(2, '0')}`;
+        
+        // 按日期分组
+        if (!dateGroups[dateStr]) {
+          dateGroups[dateStr] = { duration: 0, count: 0 };
+        }
+        dateGroups[dateStr].duration += record.duration || 0;
+        dateGroups[dateStr].count += 1;
+        
+        // 按场景分组
+        const scene = record.scene || '其他';
+        if (!sceneGroups[scene]) {
+          sceneGroups[scene] = { duration: 0, count: 0 };
+        }
+        sceneGroups[scene].duration += record.duration || 0;
+        sceneGroups[scene].count += 1;
+        
+        // 计算今日和累计数据
+        if (dateStr === todayStr) {
+          todayDuration += record.duration || 0;
+          todayFailures += record.isFailed ? 1 : 0; // 假设有isFailed字段
+        }
+        totalDuration += record.duration || 0;
+        totalFailures += record.isFailed ? 1 : 0;
+      });
+      
+      // 更新统计数据
+      this.todayDuration = todayDuration;
+      this.totalDuration = totalDuration;
+      this.todayFailures = todayFailures;
+      this.totalFailures = totalFailures;
+      
+      // 生成柱状图数据（最近9天）
+      this.generateBarChartData(dateGroups);
+      
+      // 生成环形图数据
+      this.generateRingChartData(sceneGroups);
+    },
+    
+    // 生成柱状图数据
+    generateBarChartData(dateGroups) {
+      // 获取最近9天的日期
+      const dates = [];
+      for (let i = 8; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+        dates.push({
+          date: `${date.getMonth() + 1}.${date.getDate()}`,
+          dateStr: dateStr
+        });
+      }
+      
+      // 生成时长数据
+      this.durationData = dates.map(item => {
+        const duration = dateGroups[item.dateStr] ? dateGroups[item.dateStr].duration : 0;
+        // 根据最大值计算高度比例
+        const maxDuration = Math.max(...Object.values(dateGroups).map(d => d.duration), 60);
+        const height = (duration / maxDuration) * 140; // 最大高度140rpx
+        return {
+          date: item.date,
+          height: Math.min(height, 140),
+          value: duration
+        };
+      });
+      
+      // 生成次数数据
+      this.countData = dates.map(item => {
+        const count = dateGroups[item.dateStr] ? dateGroups[item.dateStr].count : 0;
+        // 根据最大值计算高度比例
+        const maxCount = Math.max(...Object.values(dateGroups).map(d => d.count), 10);
+        const height = (count / maxCount) * 120; // 最大高度120rpx
+        return {
+          date: item.date,
+          height: Math.min(height, 120),
+          value: count
+        };
+      });
+    },
+    
+    // 生成环形图数据
+    generateRingChartData(sceneGroups) {
+      const colors = ['#000000', '#2196F3', '#FF9800', '#9C27B0', '#4CAF50', '#F44336', '#9E9E9E', '#607D8B'];
+      
+      this.ringChartData = Object.keys(sceneGroups).map((scene, index) => {
+        const data = sceneGroups[scene];
+        return {
+          label: scene,
+          value: data.duration,
+          color: colors[index % colors.length],
+          count: data.count
+        };
+      });
+      
+      // 计算总数
+      this.ringChartTotal = Object.values(sceneGroups).reduce((sum, item) => sum + item.count, 0);
+    },
+    
     // 初始化日期
     initDates() {
       const today = new Date();
@@ -820,15 +918,7 @@ export default {
     onRingChartTouchEnd(e) {
       // 处理触摸结束事件
     },
-    
-    // 页面卸载时清理图表实例
-    onUnload() {
-      if (this.ringChartInstance) {
-        this.ringChartInstance.dispose();
-        this.ringChartInstance = null;
-      }
-    },
-    
+
     // 强制刷新环形图
     forceRefreshRingChart() {
       // 通过临时隐藏和显示Canvas来强制重新渲染
@@ -846,6 +936,38 @@ export default {
           });
         }, 50); // 短暂隐藏后重新显示
       });
+    }
+  },
+
+  computed: {
+    barData() {
+      return this.currentDimension === 'duration' ? this.durationData : this.countData;
+    },
+    
+    dimensionText() {
+      return this.currentDimension === 'duration' ? '时长' : '次数';
+    },
+    
+    dimensionSubtitle() {
+      const total = this.currentDimension === 'duration' 
+        ? '1小时' 
+        : '15次';
+      return `累计${total}`;
+    },
+    
+    timeClassificationText() {
+      switch(this.timeClassification) {
+        case 'day':
+          return '按天查看';
+        case 'week':
+          return '按周查看';
+        case 'month':
+          return '按月查看';
+        case 'year':
+          return '按年查看';
+        default:
+          return '按天查看';
+      }
     }
   }
 }
@@ -871,7 +993,6 @@ export default {
   font-weight: bold;
   color: #333333;
 }
-
 
 
 /* 状态概览区 */
@@ -1084,7 +1205,6 @@ export default {
 }
 
 
-
 .bar-date {
   font-size: 20rpx;
   color: #666666;
@@ -1210,12 +1330,10 @@ export default {
 }
 
 
-
 .center-label {
   font-size: 24rpx;
   color: #666666;
 }
-
 
 
 .chart-sectors {

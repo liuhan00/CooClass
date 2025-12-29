@@ -55,6 +55,8 @@
 </template>
 
 <script>
+import request, { BASE_URL } from '@/utils/request.js'
+
 export default {
   data() {
     return {
@@ -75,10 +77,73 @@ export default {
   
   methods: {
     // 初始化用户数据
-    initUserData() {
-      // 这里可以从本地存储或API获取用户数据
-      // 暂时使用默认值
-      this.originalUserInfo = JSON.parse(JSON.stringify(this.userInfo));
+    async initUserData() {
+      try {
+        // 检查本地存储的token
+        const token = uni.getStorageSync('token');
+        const userInfo = uni.getStorageSync('userInfo');
+        
+        console.log('编辑页面 - 本地存储的用户信息:', {
+          hasToken: !!token,
+          token: token,
+          userInfo: userInfo
+        });
+        
+        uni.showLoading({
+          title: '加载中...'
+        });
+        
+        // 从API获取用户信息
+        const response = await request.getUserInfo();
+        
+        if (response.statusCode === 200 && response.data.success) {
+          // 更新用户信息
+          this.userInfo = {
+            avatar: response.data.data.avatar || this.userInfo.avatar,
+            nickname: response.data.data.nickname || this.userInfo.nickname,
+            bio: response.data.data.bio || this.userInfo.bio,
+            birthday: response.data.data.birthday || this.userInfo.birthday
+          };
+        } else {
+          uni.showToast({
+            title: response.data.message || '获取用户信息失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('获取用户信息失败:', error);
+        
+        // 检查是否是401未授权错误
+        if (error.statusCode === 401) {
+          // 用户未登录或token过期，跳转到登录页面
+          uni.showModal({
+            title: '提示',
+            content: '您还未登录，请先登录',
+            confirmText: '去登录',
+            cancelText: '取消',
+            success: (res) => {
+              if (res.confirm) {
+                uni.navigateTo({
+                  url: '/pages/login/index'
+                });
+              } else {
+                // 如果用户取消登录，则返回上一页
+                uni.navigateBack();
+              }
+            }
+          });
+          return; // 停止后续处理
+        } else {
+          uni.showToast({
+            title: '网络请求失败',
+            icon: 'none'
+          });
+        }
+      } finally {
+        uni.hideLoading();
+        // 保存原始数据用于比较
+        this.originalUserInfo = JSON.parse(JSON.stringify(this.userInfo));
+      }
     },
     
     // 返回上一页
@@ -116,11 +181,52 @@ export default {
         count: 1,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
-        success: (res) => {
-          this.userInfo.avatar = res.tempFilePaths[0]
+        success: async (res) => {
+          const tempFilePath = res.tempFilePaths[0];
+          
+          try {
+            uni.showLoading({
+              title: '上传中...'
+            });
+            
+            // 上传头像到服务器（这里使用模拟上传，实际项目中需要替换为真实上传接口）
+            // 由于uni.uploadFile需要服务器支持，我们暂时先更新本地数据
+            this.userInfo.avatar = tempFilePath;
+            
+            // 如果有头像上传API，可以在这里调用
+            /* 
+            const uploadResult = await uni.uploadFile({
+              url: BASE_URL + '/api/upload/avatar',
+              filePath: tempFilePath,
+              name: 'avatar',
+              header: {
+                'Authorization': 'Bearer ' + uni.getStorageSync('token') // 如果需要认证
+              }
+            });
+            
+            if(uploadResult.statusCode === 200) {
+              const response = JSON.parse(uploadResult.data);
+              if(response.success) {
+                this.userInfo.avatar = response.data.url;
+              }
+            }
+            */
+          } catch (error) {
+            console.error('上传头像失败:', error);
+            uni.showToast({
+              title: '上传失败',
+              icon: 'none'
+            });
+          } finally {
+            uni.hideLoading();
+          }
         },
         fail: (err) => {
-          console.log('选择头像失败', err)
+          console.log('选择头像失败', err);
+          uni.showToast({
+            title: '选择头像失败',
+            icon: 'none'
+          });
         }
       })
     },
@@ -131,7 +237,7 @@ export default {
     },
     
     // 保存用户资料
-    saveProfile() {
+    async saveProfile() {
       if (!this.userInfo.nickname.trim()) {
         uni.showToast({
           title: '请输入昵称',
@@ -144,24 +250,57 @@ export default {
         title: '保存中...'
       })
       
-      // 这里可以调用API保存用户资料
-      // api.updateUserProfile(this.userInfo)
-      
-      setTimeout(() => {
-        uni.hideLoading()
-        uni.showToast({
-          title: '资料保存成功',
-          icon: 'success'
-        })
+      try {
+        // 调用API保存用户资料
+        const response = await request.updateUserInfo(this.userInfo);
         
-        // 更新原始数据
-        this.originalUserInfo = JSON.parse(JSON.stringify(this.userInfo));
+        if (response.statusCode === 200 && response.data.success) {
+          uni.showToast({
+            title: '资料保存成功',
+            icon: 'success'
+          });
+          
+          // 更新原始数据
+          this.originalUserInfo = JSON.parse(JSON.stringify(this.userInfo));
+          
+          // 延迟返回，让用户看到成功提示
+          setTimeout(() => {
+            uni.navigateBack();
+          }, 1500);
+        } else {
+          uni.showToast({
+            title: response.data.message || '保存失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('保存用户资料失败:', error);
         
-        // 延迟返回，让用户看到成功提示
-        setTimeout(() => {
-          uni.navigateBack()
-        }, 1500)
-      }, 1000)
+        // 检查是否是401未授权错误
+        if (error.statusCode === 401) {
+          // 用户未登录或token过期，跳转到登录页面
+          uni.showModal({
+            title: '提示',
+            content: '登录已过期，请重新登录',
+            confirmText: '去登录',
+            cancelText: '取消',
+            success: (res) => {
+              if (res.confirm) {
+                uni.navigateTo({
+                  url: '/pages/login/index'
+                });
+              }
+            }
+          });
+        } else {
+          uni.showToast({
+            title: '网络请求失败',
+            icon: 'none'
+          });
+        }
+      } finally {
+        uni.hideLoading();
+      }
     }
   }
 }

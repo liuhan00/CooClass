@@ -70,29 +70,6 @@
       </view>
     </view>
 
-    <!-- 更多区块 -->
-    <view class="more-section">
-      <text class="section-title">更多</text>
-      <view class="more-item" @tap="handleMoreTap('联系我们')">
-        <view class="more-content">
-          <text class="more-title">联系我们</text>
-          <text class="more-desc">您可以通过客服邮箱联系我们</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
-      <view class="more-item" @tap="handleMoreTap('用户协议')">
-        <view class="more-content">
-          <text class="more-title">用户协议</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
-      <view class="more-item" @tap="handleMoreTap('隐私政策')">
-        <view class="more-content">
-          <text class="more-title">隐私政策</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
-    </view>
     
     <!-- 注销账号确认弹窗 -->
     <view class="logout-modal" v-if="showLogoutModal">
@@ -112,6 +89,8 @@
 </template>
 
 <script>
+import request from '@/utils/request.js'
+
 export default {
   data() {
     return {
@@ -126,9 +105,13 @@ export default {
   },
   
   onLoad() {
-    // 页面加载时可以获取用户真实信息
-    // 这里可以调用API获取用户数据
-    // this.fetchUserInfo();
+    // 页面加载时获取用户真实信息
+    this.fetchUserInfo();
+  },
+  
+  onShow() {
+    // 页面显示时刷新用户信息，确保显示最新数据
+    this.fetchUserInfo();
   },
   
   methods: {
@@ -154,31 +137,81 @@ export default {
       // });
     },
     
-    // 获取用户信息（示例方法）
-    fetchUserInfo() {
-      // 这里可以调用后端API获取用户真实信息
-      // 示例：
-      // api.getUserInfo().then(res => {
-      //   this.userInfo = res.data;
-      // });
+    // 获取用户信息
+    async fetchUserInfo() {
+      try {
+        // 检查本地存储的token
+        const token = uni.getStorageSync('token');
+        const userInfo = uni.getStorageSync('userInfo');
+        
+        console.log('本地存储的用户信息:', {
+          hasToken: !!token,
+          token: token,
+          userInfo: userInfo
+        });
+        
+        uni.showLoading({
+          title: '加载中...'
+        });
+        
+        // 从API获取用户信息
+        const response = await request.getUserInfo();
+        
+        if (response.statusCode === 200 && response.data.success) {
+          // 更新用户信息
+          this.userInfo = {
+            username: response.data.data.nickname || response.data.data.username || this.userInfo.username,
+            userId: response.data.data.userId || response.data.data.id || this.userInfo.userId,
+            avatar: response.data.data.avatar || this.userInfo.avatar
+          };
+        } else {
+          uni.showToast({
+            title: response.data.message || '获取用户信息失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('获取用户信息失败:', error);
+        
+        // 检查是否是401未授权错误
+        if (error.statusCode === 401) {
+          // 用户未登录或token过期，跳转到登录页面
+          uni.showModal({
+            title: '提示',
+            content: '您还未登录，请先登录',
+            confirmText: '去登录',
+            cancelText: '取消',
+            success: (res) => {
+              if (res.confirm) {
+                uni.navigateTo({
+                  url: '/pages/login/index'
+                });
+              }
+            }
+          });
+        } else {
+          uni.showToast({
+            title: '网络请求失败',
+            icon: 'none'
+          });
+        }
+      } finally {
+        uni.hideLoading();
+      }
     },
     
     // 修改头像
     changeAvatar() {
-      uni.showToast({
-        title: '更换头像功能开发中',
-        icon: 'none'
+      uni.navigateTo({
+        url: '/pages/profile-edit/index'
       });
-      // 这里可以调用上传头像功能
     },
     
     // 编辑资料
     editProfile() {
-      uni.showToast({
-        title: '编辑资料功能开发中',
-        icon: 'none'
+      uni.navigateTo({
+        url: '/pages/profile-edit/index'
       });
-      // 这里可以跳转到编辑资料页面
     },
     
     handleSettingTap(setting) {
@@ -237,20 +270,8 @@ export default {
           // 这里可以跳转到应用商店评分页面
           break;
         case '新功能许愿':
-          uni.showModal({
-            title: '功能许愿',
-            editable: true,
-            placeholderText: '请输入您希望添加的功能...',
-            success: (res) => {
-              if (res.confirm) {
-                uni.showToast({
-                  title: '已收到您的建议',
-                  icon: 'success'
-                });
-                // 这里可以将用户建议发送到服务器
-                // api.submitWish(res.content);
-              }
-            }
+          uni.navigateTo({
+            url: '/pages/wish-feature/index'
           });
           break;
         case '和朋友分享':
@@ -268,59 +289,6 @@ export default {
       }
     },
     
-    handleMoreTap(item) {
-      console.log('点击更多项:', item);
-      
-      switch(item) {
-        case '联系我们':
-          uni.showActionSheet({
-            itemList: ['客服微信', '客服QQ', '客服邮箱'],
-            success: (res) => {
-              let contact = '';
-              switch(res.tapIndex) {
-                case 0:
-                  contact = '微信：xxx-xxxx-xxxx';
-                  break;
-                case 1:
-                  contact = 'QQ：123456789';
-                  break;
-                case 2:
-                  contact = '邮箱：support@guguxue.com';
-                  break;
-              }
-              uni.setClipboardData({
-                data: contact,
-                success: () => {
-                  uni.showToast({
-                    title: '已复制到剪贴板',
-                    icon: 'success'
-                  });
-                }
-              });
-            }
-          });
-          break;
-        case '用户协议':
-          uni.showToast({
-            title: '用户协议页面开发中',
-            icon: 'none'
-          });
-          // 这里可以跳转到用户协议页面
-          break;
-        case '隐私政策':
-          uni.showToast({
-            title: '隐私政策页面开发中',
-            icon: 'none'
-          });
-          // 这里可以跳转到隐私政策页面
-          break;
-        default:
-          uni.showToast({
-            title: `点击了${item}`,
-            icon: 'none'
-          });
-      }
-    }
   }
 }
 </script>
@@ -389,8 +357,7 @@ export default {
 
 /* 区块样式 */
 .settings-section,
-.support-section,
-.more-section {
+.support-section {
   background-color: #ffffff;
   border-radius: 20rpx;
   padding: 30rpx;
@@ -412,8 +379,7 @@ export default {
 
 /* 设置项样式 */
 .setting-item,
-.support-item,
-.more-item {
+.support-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -422,20 +388,17 @@ export default {
 }
 
 .setting-item:last-child,
-.support-item:last-child,
-.more-item:last-child {
+.support-item:last-child {
   border-bottom: none;
 }
 
 .setting-content,
-.support-content,
-.more-content {
+.support-content {
   flex: 1;
 }
 
 .setting-title,
-.support-title,
-.more-title {
+.support-title {
   font-size: 30rpx;
   color: #333333;
   font-weight: bold;
@@ -444,8 +407,7 @@ export default {
 }
 
 .setting-desc,
-.support-desc,
-.more-desc {
+.support-desc {
   font-size: 26rpx;
   color: #999999;
   font-weight: normal;

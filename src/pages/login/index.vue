@@ -81,6 +81,7 @@
 
 <script>
 import Matter from 'matter-js'
+import api from '@/utils/request'
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
@@ -555,11 +556,124 @@ export default {
         uni.stopAccelerometer()
       }
     },
-    handleWeChatLogin() {
-      this.triggerEntrance('已连接微信')
+    async handleWeChatLogin() {
+      try {
+        // 调用微信登录API获取登录凭证
+        const loginRes = await new Promise((resolve, reject) => {
+          uni.login({
+            provider: 'weixin',
+            success: (res) => {
+              resolve(res);
+            },
+            fail: (err) => {
+              reject(err);
+            }
+          });
+        });
+        
+        // 获取用户授权
+        const authRes = await new Promise((resolve, reject) => {
+          uni.getUserProfile({
+            desc: '用于完善用户资料',
+            success: (res) => {
+              resolve(res);
+            },
+            fail: (err) => {
+              // 如果用户拒绝授权，仍然可以使用微信登录，只是用户信息为空
+              console.log('用户拒绝提供用户信息，将使用空的用户信息');
+              resolve({ userInfo: {} });
+            }
+          });
+        });
+        
+        // 构建请求数据
+        const requestData = {
+          code: loginRes.code,
+          userInfo: {
+            nickName: authRes.userInfo.nickName || '',
+            avatarUrl: authRes.userInfo.avatarUrl || '',
+            gender: authRes.userInfo.gender || 0,
+            city: authRes.userInfo.city || '',
+            province: authRes.userInfo.province || '',
+            country: authRes.userInfo.country || ''
+          }
+        };
+        
+        // 调用后端API进行微信登录
+        const response = await api.wechatLogin(requestData);
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          // 登录成功，保存用户信息和token
+          const { data } = response.data;
+          
+          console.log('登录成功，准备保存数据:', {
+            userData: data,
+            token: data.token
+          });
+          
+          // 保存用户信息到本地存储
+          uni.setStorageSync('userInfo', data);
+          uni.setStorageSync('token', data.token);
+          
+          // 验证保存是否成功
+          const savedToken = uni.getStorageSync('token');
+          console.log('验证保存的token:', savedToken);
+          
+          // 显示登录成功信息
+          uni.showToast({
+            title: data.firstLogin ? '首次登录，欢迎！' : '登录成功',
+            icon: 'success'
+          });
+          
+          // 触发登录成功流程
+          this.triggerEntrance(data.firstLogin ? '首次登录，欢迎！' : '登录成功');
+        } else {
+          throw new Error(response.data.message || '登录失败');
+        }
+      } catch (error) {
+        console.error('微信登录失败:', error);
+        uni.showToast({
+          title: error.message || '登录失败，请重试',
+          icon: 'none'
+        });
+      }
     },
     handleGuestLogin() {
-      this.triggerEntrance('以游客模式体验')
+      try {
+        // 生成游客用户信息（本地模拟）
+        const guestUserInfo = {
+          userId: `guest_${Date.now()}`,
+          nickName: '游客_' + Math.random().toString(36).substr(2, 6),
+          avatarUrl: '/static/logo.png', // 使用默认头像
+          level: 1,
+          exp: 0,
+          expToNextLevel: 100,
+          coins: 10,
+          continuousDays: 0,
+          totalFocusMinutes: 0,
+          token: 'guest_token_' + Date.now(),
+          firstLogin: true
+        };
+        
+        // 保存用户信息到本地存储
+        uni.setStorageSync('userInfo', guestUserInfo);
+        uni.setStorageSync('token', guestUserInfo.token);
+        
+        // 显示登录成功信息
+        uni.showToast({
+          title: guestUserInfo.firstLogin ? '首次登录，欢迎！' : '游客登录成功',
+          icon: 'success'
+        });
+        
+        // 触发登录成功流程
+        this.triggerEntrance(guestUserInfo.firstLogin ? '首次登录，欢迎！' : '游客登录成功');
+      } catch (error) {
+        console.error('游客登录失败:', error);
+        uni.showToast({
+          title: error.message || '游客登录失败，请重试',
+          icon: 'none'
+        });
+      }
     },
     
     // 图片加载错误处理

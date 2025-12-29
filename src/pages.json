@@ -67,6 +67,13 @@
 			"style": {
 				"navigationBarTitleText": "时光"
 			}
+		},
+		{
+			"path": "pages/wish-feature/index",
+			"style": {
+				"navigationBarTitleText": "意见与反馈",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {

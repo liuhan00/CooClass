@@ -83,7 +83,7 @@
         <text class="section-title">标签分布</text>
         <!-- 按天查看 -->
         <view class="daily-view-toggle" @tap="toggleDailyView">
-          <text class="toggle-text">按天查看</text>
+          <text class="toggle-text">{{ timeClassificationText }}</text>
           <text class="toggle-arrow">›</text>
         </view>
       </view>
@@ -123,9 +123,10 @@
           
           <!-- 环形图 -->
           <canvas 
-            :canvas-id="'ringChartCanvas' + currentDimension" 
-            :id="'ringChartCanvas' + currentDimension" 
+            :canvas-id="'ringChartCanvas' + timestamp" 
+            :id="'ringChartCanvas' + timestamp" 
             class="ring-canvas" 
+            v-if="showRingChart"
             @touchstart="onRingChartTouchStart"
             @touchmove="onRingChartTouchMove"
             @touchend="onRingChartTouchEnd"
@@ -219,6 +220,7 @@ export default {
       pickerValue: [0], // 滚动选择器的值
       currentDate: '', // 当前选中的日期
       todayDate: '', // 今天的日期
+      timestamp: Date.now(), // 用于强制刷新canvas
       
       // 柱状图数据 - 时长
       durationData: [
@@ -247,15 +249,16 @@ export default {
       
       // 环形图数据
       ringChartData: [
-        { label: '专注', value: 30, color: '#000000', count: 30 }, // 黑色
-        { label: '阅读', value: 20, color: '#2196F3', count: 20 }, // 蓝色
-        { label: '工作', value: 15, color: '#FF9800', count: 15 }, // 橙色
-        { label: '健身', value: 10, color: '#9C27B0', count: 10 }, // 紫色
-        { label: '学习', value: 5, color: '#4CAF50', count: 5 }  // 绿色
+        { label: '专注', value: 120, color: '#000000', count: 8 }, // 黑色 - 时长120分钟，次数8次
+        { label: '阅读', value: 90, color: '#2196F3', count: 12 }, // 蓝色 - 时长90分钟，次数12次
+        { label: '工作', value: 150, color: '#FF9800', count: 10 }, // 橙色 - 时长150分钟，次数10次
+        { label: '健身', value: 60, color: '#9C27B0', count: 6 }, // 紫色 - 时长60分钟，次数6次
+        { label: '学习', value: 180, color: '#4CAF50', count: 15 }  // 绿色 - 时长180分钟，次数15次
       ],
-      ringChartTotal: 140, // 总次数
+      ringChartTotal: 51, // 总次数（当显示次数时的总数）
       ringChartInstance: null, // 环形图实例
-      chartCanvas: null // 图表canvas引用
+      chartCanvas: null, // 图表canvas引用
+      showRingChart: true // 控制环形图显示，用于强制重绘
     }
   },
   
@@ -282,6 +285,21 @@ export default {
         ? '1小时' 
         : '15次';
       return `累计${total}`;
+    },
+    
+    timeClassificationText() {
+      switch(this.timeClassification) {
+        case 'day':
+          return '按天查看';
+        case 'week':
+          return '按周查看';
+        case 'month':
+          return '按月查看';
+        case 'year':
+          return '按年查看';
+        default:
+          return '按天查看';
+      }
     }
   },
   
@@ -302,13 +320,55 @@ export default {
       this.pickerValue = [index >= 0 ? index : 0];
     },
     
-    // 格式化日期为 MM.DD 周X 格式
+    // 根据时间分类格式化日期
     formatDate(date) {
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const day = date.getDate().toString().padStart(2, '0');
-      const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
-      const weekDay = weekDays[date.getDay()];
-      return `${month}.${day} 周${weekDay}`;
+      
+      switch(this.timeClassification) {
+        case 'day':
+          // 按天查看：MM.DD 周X 格式
+          const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+          const weekDay = weekDays[date.getDay()];
+          return `${month}.${day} 周${weekDay}`;
+          
+        case 'week':
+          // 按周查看：显示周一到周日的日期范围
+          const startOfWeek = new Date(date);
+          // 获取这一周的周一
+          const dayOfWeek = date.getDay();
+          const daysFromMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // 周日是0，需要特殊处理
+          startOfWeek.setDate(date.getDate() + daysFromMonday);
+          
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+          
+          const startMonth = (startOfWeek.getMonth() + 1).toString().padStart(2, '0');
+          const startDay = startOfWeek.getDate().toString().padStart(2, '0');
+          const endMonth = (endOfWeek.getMonth() + 1).toString().padStart(2, '0');
+          const endDay = endOfWeek.getDate().toString().padStart(2, '0');
+          
+          // 处理跨月情况
+          if (startOfWeek.getMonth() !== endOfWeek.getMonth()) {
+            return `${startMonth}.${startDay}~${endMonth}.${endDay}`;
+          } else {
+            return `${startMonth}.${startDay}~${endDay}`;
+          }
+          
+        case 'month':
+          // 按月查看：YYYY.MM 格式
+          return `${date.getFullYear()}.${month}`;
+          
+        case 'year':
+          // 按年查看：YYYY 格式
+          return `${date.getFullYear()}`;
+          
+        default:
+          // 默认按天查看
+          const defaultWeekDays = ['日', '一', '二', '三', '四', '五', '六'];
+          const defaultWeekDay = defaultWeekDays[date.getDay()];
+          return `${month}.${day} 周${defaultWeekDay}`;
+      }
     },
     // 切换维度（时长/次数）
     toggleDimension() {
@@ -317,13 +377,24 @@ export default {
     
     // 选择维度
     selectDimension(dimension) {
+      console.log('选择维度:', dimension);
       this.currentDimension = dimension;
       this.showDimensionModal = false;
       
-      // 这里可以添加更新图表数据的逻辑
       uni.showToast({
         title: `已切换到${dimension === 'duration' ? '时长' : '次数'}维度`,
         icon: 'none'
+      });
+      
+      // 更新时间戳以强制刷新canvas，使用更大的时间间隔以确保更新
+      this.$nextTick(() => {
+        setTimeout(() => {
+          this.timestamp = Date.now();
+          console.log('更新时间戳:', this.timestamp);
+          
+          // 强制刷新环形图，解决小程序兼容性问题
+          this.forceRefreshRingChart();
+        }, 100);
       });
     },
     
@@ -341,44 +412,137 @@ export default {
       })
     },
     
-    // 切换日期（前一天）
+    // 切换日期（前一个时间段）
     prevDay() {
-      const date = new Date();
-      date.setDate(date.getDate() - 1);
-      this.currentDate = this.formatDate(date);
+      const currentDate = this.parseCurrentDate();
+      
+      switch(this.timeClassification) {
+        case 'day':
+          currentDate.setDate(currentDate.getDate() - 1);
+          break;
+        case 'week':
+          currentDate.setDate(currentDate.getDate() - 7);
+          break;
+        case 'month':
+          currentDate.setMonth(currentDate.getMonth() - 1);
+          break;
+        case 'year':
+          currentDate.setFullYear(currentDate.getFullYear() - 1);
+          break;
+      }
+      
+      this.currentDate = this.formatDate(currentDate);
     },
     
-    // 切换日期（后一天）
+    // 切换日期（后一个时间段）
     nextDay() {
-      // 检查是否已经是今天，如果是今天则不能向后选择
-      if (this.currentDate === this.todayDate) {
+      // 检查是否已经是今天的时间段，如果是则不能向后选择
+      if (this.isTodayTimeRange()) {
         return;
       }
       
-      const date = new Date();
-      // 从当前显示的日期开始计算
-      const currentDateStr = this.currentDate.split(' ')[0]; // 获取 MM.DD 部分
-      const [month, day] = currentDateStr.split('.').map(Number);
+      const currentDate = this.parseCurrentDate();
       
-      date.setMonth(month - 1);
-      date.setDate(day);
-      date.setDate(date.getDate() + 1); // 向后一天
+      switch(this.timeClassification) {
+        case 'day':
+          currentDate.setDate(currentDate.getDate() + 1);
+          break;
+        case 'week':
+          currentDate.setDate(currentDate.getDate() + 7);
+          break;
+        case 'month':
+          currentDate.setMonth(currentDate.getMonth() + 1);
+          break;
+        case 'year':
+          currentDate.setFullYear(currentDate.getFullYear() + 1);
+          break;
+      }
       
-      this.currentDate = this.formatDate(date);
+      this.currentDate = this.formatDate(currentDate);
+    },
+    
+    // 解析当前显示的日期
+    parseCurrentDate() {
+      const today = new Date();
+      
+      switch(this.timeClassification) {
+        case 'day':
+          // 从 MM.DD 格式解析日期
+          const dayParts = this.currentDate.split(' ')[0].split('.');
+          const month = parseInt(dayParts[0]) - 1;
+          const day = parseInt(dayParts[1]);
+          
+          // 使用当前年份，但如果月份超过当前月份，则使用前一年（防止未来日期）
+          let year = today.getFullYear();
+          if (month > today.getMonth()) {
+            year = year - 1;
+          }
+          return new Date(year, month, day);
+          
+        case 'week':
+          // 从 MM.DD~MM.DD 格式解析日期，取开始日期
+          const weekParts = this.currentDate.split('~');
+          const startPart = weekParts[0].split('.');
+          const startMonth = parseInt(startPart[0]) - 1;
+          const startDay = parseInt(startPart[1]);
+          
+          let weekYear = today.getFullYear();
+          if (startMonth > today.getMonth()) {
+            weekYear = weekYear - 1;
+          }
+          return new Date(weekYear, startMonth, startDay);
+          
+        case 'month':
+          // 从 YYYY.MM 格式解析日期，取该月第一天
+          const monthParts = this.currentDate.split('.');
+          const monthYear = parseInt(monthParts[0]);
+          const monthNum = parseInt(monthParts[1]) - 1;
+          return new Date(monthYear, monthNum, 1);
+          
+        case 'year':
+          // 从 YYYY 格式解析日期，取该年第一天
+          const yearNum = parseInt(this.currentDate);
+          return new Date(yearNum, 0, 1);
+          
+        default:
+          // 默认按天处理
+          const defaultParts = this.currentDate.split(' ')[0].split('.');
+          const defaultMonth = parseInt(defaultParts[0]) - 1;
+          const defaultDay = parseInt(defaultParts[1]);
+          
+          let defaultYear = today.getFullYear();
+          if (defaultMonth > today.getMonth()) {
+            defaultYear = defaultYear - 1;
+          }
+          return new Date(defaultYear, defaultMonth, defaultDay);
+      }
+    },
+    
+    // 检查当前时间范围是否为今天的时间范围
+    isTodayTimeRange() {
+      const today = new Date();
+      const todayFormatted = this.formatDate(today);
+      return this.currentDate === todayFormatted;
     },
     
     // 切换维度（时长/次数）
     switchDimension(dimension) {
+      console.log('切换维度到:', dimension);
       this.currentDimension = dimension
+      
       uni.showToast({
         title: `切换到${dimension === 'duration' ? '时长' : '次数'}维度`,
         icon: 'none'
       })
       
-      // 重新绘制环形图
+      // 更新时间戳以强制刷新canvas，使用更大的时间间隔以确保更新
       this.$nextTick(() => {
         setTimeout(() => {
-          this.drawRingChart();
+          this.timestamp = Date.now();
+          console.log('更新时间戳:', this.timestamp);
+          
+          // 强制刷新环形图，解决小程序兼容性问题
+          this.forceRefreshRingChart();
         }, 100);
       });
     },
@@ -403,24 +567,42 @@ export default {
     // 完成时间分类选择
     finishTimeClassification() {
       this.showTimeClassificationModal = false;
+      
+      // 更新当前日期为对应时间分类的当前时间
+      const today = new Date();
+      this.currentDate = this.formatDate(today);
+      this.todayDate = this.currentDate;
+      
+      // 更新时间戳以强制刷新canvas
+      this.timestamp = Date.now();
+      
+      // 强制刷新环形图，解决小程序兼容性问题
+      this.forceRefreshRingChart();
     },
     
     // 选择时间分类
     selectTimeClassification(classification) {
       this.timeClassification = classification;
       this.updatePickerValue();
+      // 更新时间戳以强制刷新canvas
+      this.timestamp = Date.now();
+      
+      // 强制刷新环形图，解决小程序兼容性问题
+      this.forceRefreshRingChart();
     },
     
     // 绘制环形图
     async drawRingChart() {
+      console.log('开始绘制环形图，当前维度:', this.currentDimension, '时间戳:', this.timestamp);
       // 确保DOM渲染完成
       await this.$nextTick();
       
-      // 使用setTimeout确保元素完全渲染
+      // 使用更长的延时确保元素完全渲染，解决小程序兼容性问题
       setTimeout(() => {
         // 获取canvas元素
         const query = uni.createSelectorQuery().in(this);
-        const selector = '#ringChartCanvas' + this.currentDimension;
+        const selector = '#ringChartCanvas' + this.timestamp;
+        console.log('canvas选择器:', selector, '当前维度:', this.currentDimension);
         
         query.select(selector).boundingClientRect((rect) => {
           if (!rect || rect.width === 0 || rect.height === 0) {
@@ -429,7 +611,8 @@ export default {
           }
           
           // 创建canvas上下文
-          const ctx = uni.createCanvasContext('ringChartCanvas' + this.currentDimension, this);
+          const ctx = uni.createCanvasContext('ringChartCanvas' + this.timestamp, this);
+          console.log('创建canvas上下文成功，当前维度:', this.currentDimension);
           
           // 使用Canvas API绘制环形图
           const centerX = rect.width / 2;
@@ -445,7 +628,8 @@ export default {
           // 计算总值
           const total = this.currentDimension === 'duration' 
             ? this.ringChartData.reduce((sum, item) => sum + item.value, 0)
-            : this.ringChartTotal;
+            : this.ringChartData.reduce((sum, item) => sum + item.count, 0);
+          console.log('当前维度:', this.currentDimension, '总数:', total);
           
           // 绘制背景圆环
           ctx.beginPath();
@@ -461,6 +645,7 @@ export default {
             const value = this.currentDimension === 'duration' ? item.value : item.count;
             const percentage = total > 0 ? value / total : 0;
             const angle = percentage * 2 * Math.PI;
+            console.log('绘制扇形 - 标签:', item.label, '值:', value, '百分比:', percentage);
             
             // 绘制扇形
             ctx.beginPath();
@@ -503,10 +688,14 @@ export default {
             ctx.setTextBaseline('middle');
             
             // 标签文字分两行显示
-            ctx.setFontSize(16); // 恢复字体大小
+            ctx.setFontSize(20); // 增大标签字体大小
             ctx.setTextAlign('center');
             ctx.fillText(item.label, labelX, labelY - 12);
-            ctx.fillText(`${value}次`, labelX, labelY + 12);
+            
+            // 根据当前维度显示标签单位
+            const unitText = this.currentDimension === 'duration' ? `${value}m` : `${value}次`;
+            console.log('绘制标签文本:', item.label, '单位文本:', unitText);
+            ctx.fillText(unitText, labelX, labelY + 12);
             
             currentAngle += angle;
           });
@@ -523,12 +712,100 @@ export default {
           ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
           ctx.stroke();
           
-          // 中心区域留空，不绘制任何内容，为后续添加自定义内容预留空间
+          // 绘制中心动态文本
+          this.drawCenterText(ctx, centerX, centerY, radius, innerRadius);
           
-          // 调用draw方法渲染内容
-          ctx.draw(true); // 传入true参数以确保绘制
+          // 强制绘制并确保刷新，增加延时以确保在小程序中正确显示
+          setTimeout(() => {
+            ctx.draw(true, () => {
+              console.log('第一次绘制完成，当前维度:', this.currentDimension);
+              
+              // 在某些小程序环境中，可能需要额外的强制刷新
+              setTimeout(() => {
+                ctx.draw(true, () => {
+                  console.log('第二次绘制完成，当前维度:', this.currentDimension);
+                });
+              }, 200);
+            });
+          }, 100);
         }).exec();
-      }, 200);
+      }, 150); // 增加延时以确保在小程序中元素完全渲染
+    },
+        
+    // 绘制中心动态文本
+    drawCenterText(ctx, centerX, centerY, radius, innerRadius) {
+      // 计算中心文本内容
+      const centerText = this.getCenterText();
+      
+      // 设置文本样式
+      ctx.setFillStyle('#000000');
+      ctx.setTextAlign('center');
+      ctx.setTextBaseline('middle');
+      
+      // 根据文本长度和环形图内径调整字体大小
+      const maxFontSize = Math.min(20, (innerRadius * 1.5) / 2); // 限制最大字体大小
+      const fontSize = Math.min(maxFontSize, 200 / centerText.length); // 根据文本长度调整字体大小
+      ctx.setFontSize(fontSize);
+      
+      // 绘制多行文本
+      const lines = centerText.split('\n');
+      
+      // 计算每行垂直居中位置
+      const lineHeight = fontSize * 1.3; // 行高
+      const totalHeight = lines.length * lineHeight;
+      const startY = centerY - totalHeight / 2 + lineHeight / 2; // 调整起始位置
+      
+      // 绘制每一行
+      lines.forEach((line, index) => {
+        ctx.fillText(line, centerX, startY + index * lineHeight);
+      });
+    },
+    
+    // 获取中心文本内容
+    getCenterText() {
+      console.log('获取中心文本，当前维度:', this.currentDimension);
+      // 获取时间分类的文本描述
+      const timeClassificationText = {
+        'day': '天',
+        'week': '周',
+        'month': '月',
+        'year': '年'
+      }[this.timeClassification] || '天';
+      
+      if (this.currentDimension === 'duration') {
+        // 时长模式：显示总时长
+        const totalDuration = this.ringChartData.reduce((sum, item) => sum + item.value, 0);
+        console.log('时长模式，总时长:', totalDuration);
+        
+        // 将分钟转换为小时和分钟
+        const hours = Math.floor(totalDuration / 60);
+        const minutes = totalDuration % 60;
+        
+        if (hours > 0) {
+          const result = `这${timeClassificationText}专注\n总时长${hours}h ${minutes}m`;
+          console.log('中心文本内容:', result);
+          return result;
+        } else {
+          const result = `这${timeClassificationText}专注\n总时长${minutes}m`;
+          console.log('中心文本内容:', result);
+          return result;
+        }
+      } else {
+        // 次数模式：显示总次数
+        const totalCount = this.ringChartData.reduce((sum, item) => sum + item.count, 0);
+        console.log('次数模式，总次数:', totalCount);
+        
+        // 根据时间分类调整文本
+        let result;
+        if (this.timeClassification === 'year') {
+          result = `这${timeClassificationText}\n总次数${totalCount}次`;
+        } else {
+          result = `这${timeClassificationText}\n总次数${totalCount}次`;
+        }
+        
+        console.log('中心文本内容:', result);
+        return result;
+      }
     },
         
     // 环形图触摸事件
@@ -550,6 +827,25 @@ export default {
         this.ringChartInstance.dispose();
         this.ringChartInstance = null;
       }
+    },
+    
+    // 强制刷新环形图
+    forceRefreshRingChart() {
+      // 通过临时隐藏和显示Canvas来强制重新渲染
+      this.showRingChart = false;
+      
+      this.$nextTick(() => {
+        setTimeout(() => {
+          this.showRingChart = true;
+          
+          // 确保DOM更新后再绘制
+          this.$nextTick(() => {
+            setTimeout(() => {
+              this.drawRingChart();
+            }, 350); // 给足够时间让Canvas元素重新创建
+          });
+        }, 50); // 短暂隐藏后重新显示
+      });
     }
   }
 }
@@ -891,8 +1187,8 @@ export default {
 }
 
 .ring-chart {
-  width: 600rpx;
-  height: 600rpx;
+  width: 700rpx;
+  height: 700rpx;
   position: relative;
   flex-shrink: 0;
 }
@@ -901,8 +1197,8 @@ export default {
   position: absolute;
   top: 0;
   left: 0;
-  width: 600rpx;
-  height: 600rpx;
+  width: 700rpx;
+  height: 700rpx;
 }
 
 .chart-center {

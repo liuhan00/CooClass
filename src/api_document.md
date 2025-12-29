@@ -2,16 +2,26 @@
 
 ## 1. 接口域名
 ```
-https://api.guguxue.com
+http://192.168.1.157
 ```
 
-## 2. 公共请求头
+## 2. 前端请求工具
+
+项目中使用 `src/utils/request.js` 文件封装了网络请求，包含以下方法：
+
+- `request(options)` - 通用请求方法
+- `wechatLogin(data)` - 微信登录
+- `getUserInfo()` - 获取用户信息
+- `updateUserInfo(data)` - 更新用户信息
+- `guestLogin(data)` - 游客登录（已禁用）
+
+## 3. 公共请求头
 ```
 Content-Type: application/json
 Authorization: Bearer <token>  // 部分接口需要
 ```
 
-## 3. 状态码说明
+## 4. 状态码说明
 | 状态码 | 说明 |
 |-------|------|
 | 200 | 请求成功 |
@@ -21,9 +31,9 @@ Authorization: Bearer <token>  // 部分接口需要
 | 404 | 接口不存在 |
 | 500 | 服务器内部错误 |
 
-## 4. 用户认证接口
+## 5. 用户认证接口
 
-### 4.1 微信授权登录
+### 5.1 微信授权登录
 **接口地址：** POST /api/auth/wechat-login
 
 **请求参数：**
@@ -56,7 +66,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 4.2 游客登录
+### 5.2 游客登录
 **接口地址：** POST /api/auth/guest-login
 
 **请求参数：**
@@ -81,7 +91,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 4.3 用户信息获取
+### 5.3 用户信息获取
 **接口地址：** GET /api/auth/user-info
 
 **请求参数：** 无
@@ -105,7 +115,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 4.4 更新用户信息
+### 5.4 更新用户信息
 **接口地址：** PUT /api/auth/user-info
 
 **请求参数：**
@@ -251,9 +261,9 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-## 6. 小鸡养成接口
+## 7. 小鸡养成接口
 
-### 6.1 获取小鸡信息
+### 7.1 获取小鸡信息
 **接口地址：** GET /api/chicken/info
 
 **请求参数：** 无
@@ -276,7 +286,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 6.2 喂养小鸡
+### 7.2 喂养小鸡
 **接口地址：** POST /api/chicken/feed
 
 **请求参数：**
@@ -313,7 +323,7 @@ Authorization: Bearer <token>  // 部分接口需要
 ```
 
 
-### 6.5 升级小鸡
+### 7.5 升级小鸡
 **接口地址：** POST /api/chicken/level-up
 
 **请求参数：** 无
@@ -339,9 +349,9 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-## 7. 数据统计接口
+## 8. 数据统计接口
 
-### 7.1 获取专注统计数据
+### 8.1 获取专注统计数据
 **接口地址：** GET /api/statistics/focus
 
 **请求参数：**
@@ -380,7 +390,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 7.2 获取小鸡成长数据
+### 8.2 获取小鸡成长数据
 **接口地址：** GET /api/statistics/chicken-growth
 
 **请求参数：**
@@ -417,7 +427,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 7.3 获取成就统计
+### 8.3 获取成就统计
 **接口地址：** GET /api/statistics/achievements
 
 **请求参数：** 无
@@ -445,7 +455,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 7.4 生成专注报告
+### 8.4 生成专注报告
 **接口地址：** POST /api/statistics/generate-report
 
 **请求参数：**
@@ -469,9 +479,9 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-## 8. 零食商店接口
+## 9. 零食商店接口
 
-### 8.1 获取商店商品列表
+### 9.1 获取商店商品列表
 **接口地址：** GET /api/shop/items
 
 **请求参数：**
@@ -510,7 +520,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 8.2 购买零食
+### 9.2 购买零食
 **接口地址：** POST /api/shop/purchase
 
 **请求参数：**
@@ -544,7 +554,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 8.3 获取用户背包物品
+### 9.3 获取用户背包物品
 **接口地址：** GET /api/shop/inventory
 
 **请求参数：** 无
@@ -571,7 +581,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 8.4 使用零食
+### 9.4 使用零食
 **接口地址：** POST /api/shop/use-snack
 
 **请求参数：**
@@ -597,9 +607,9 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-## 9. 成就系统接口
+## 10. 成就系统接口
 
-### 9.1 获取成就列表
+### 10.1 获取成就列表
 **接口地址：** GET /api/achievement/list
 
 **请求参数：**
@@ -648,7 +658,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 9.2 获取用户成就状态
+### 10.2 获取用户成就状态
 **接口地址：** GET /api/achievement/user-status
 
 **请求参数：** 无
@@ -677,7 +687,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 9.3 领取成就奖励
+### 10.3 领取成就奖励
 **接口地址：** POST /api/achievement/claim-reward
 
 **请求参数：**
@@ -715,7 +725,7 @@ Authorization: Bearer <token>  // 部分接口需要
 }
 ```
 
-### 9.4 查询成就解锁进度
+### 10.4 查询成就解锁进度
 **接口地址：** GET /api/achievement/progress
 
 **请求参数：**

@@ -98,6 +98,7 @@ export default {
       // 专注相关数据
       focusId: null,
       startTime: null,
+      scene: '学习', // 专注场景，默认为学习
       
       // 小鸡物理引擎相关数据
       chicks: [],
@@ -119,7 +120,13 @@ export default {
   onLoad(options) {
     // 接收从首页传递的参数
     if (options.duration) {
-      this.countdown = parseInt(options.duration);
+      // options.duration 现在是以分钟为单位的，需要转换为秒作为倒计时初始值
+      this.countdown = parseInt(options.duration) * 60; // 将分钟转换为秒
+    }
+    
+    // 接收场景参数
+    if (options.scene) {
+      this.scene = decodeURIComponent(options.scene);
     }
     
     if (options.from) {
@@ -412,8 +419,8 @@ export default {
       try {
         // 调用后端开始专注API
         const response = await startFocus({
-          duration: this.countdown,
-          scene: '学习', // 可以从首页传递场景参数
+          duration: parseInt(this.countdown / 60), // 使用分钟为单位发送给后端
+          scene: this.scene, // 使用从首页传递过来的场景参数
           startTime: this.startTime
         });
         

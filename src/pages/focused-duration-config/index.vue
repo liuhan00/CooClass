@@ -155,39 +155,33 @@ export default {
   methods: {
     // 开始计时
     startTiming() {
-      // 将选择的时间传递回首页
+      // 将选择的时间保存到本地存储
+      const hours = Math.floor(this.selectedTime / 60);
+      const minutes = this.selectedTime % 60;
+      const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      
+      // 保存到本地存储
+      uni.setStorageSync('focusDuration', timeString);
+      
+      // 返回上一页
       uni.navigateBack({
-        delta: 1,
-        success: () => {
-          // 通过事件传递数据
-          const pages = getCurrentPages();
-          const prevPage = pages[pages.length - 2];
-          if (prevPage && prevPage.$vm) {
-            // 格式化时间为 HH:MM 格式
-            const hours = Math.floor(this.selectedTime / 60);
-            const minutes = this.selectedTime % 60;
-            prevPage.$vm.focusDuration = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-          }
-        }
+        delta: 1
       });
     },
     
     // 停止计时
     stopTiming() {
-      // 将选择的时间传递回首页
+      // 将选择的时间保存到本地存储
+      const hours = Math.floor(this.selectedTime / 60);
+      const minutes = this.selectedTime % 60;
+      const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      
+      // 保存到本地存储
+      uni.setStorageSync('focusDuration', timeString);
+      
+      // 返回上一页
       uni.navigateBack({
-        delta: 1,
-        success: () => {
-          // 通过事件传递数据
-          const pages = getCurrentPages();
-          const prevPage = pages[pages.length - 2];
-          if (prevPage && prevPage.$vm) {
-            // 格式化时间为 HH:MM 格式
-            const hours = Math.floor(this.selectedTime / 60);
-            const minutes = this.selectedTime % 60;
-            prevPage.$vm.focusDuration = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-          }
-        }
+        delta: 1
       });
     },
     

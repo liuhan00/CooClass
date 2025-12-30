@@ -79,18 +79,34 @@
           </view>
         </view>
         
-        <view class="profile-section">
+        <view class="profile-section chicken-stats">
           <view class="section-header">
-            <text class="section-title">累计专注时长</text>
+            <text class="section-title">小鸡信息</text>
           </view>
-          <view class="focus-stats">
+          <view class="chicken-stats-grid">
             <view class="stat-item">
-              <text class="stat-value">{{ chickenInfo.focusHours || 120 }}</text>
-              <text class="stat-label">小时</text>
+              <text class="stat-label">成长阶段</text>
+              <text class="stat-value">{{ chickenStats.growthStage || '未知' }}</text>
             </view>
             <view class="stat-item">
-              <text class="stat-value">{{ chickenInfo.focusDays || 30 }}</text>
-              <text class="stat-label">天</text>
+              <text class="stat-label">创建天数</text>
+              <text class="stat-value">{{ chickenStats.daysSinceCreation || 0 }}天</text>
+            </view>
+            <view class="stat-item">
+              <text class="stat-label">喂食次数</text>
+              <text class="stat-value">{{ chickenStats.feedCount || 0 }}</text>
+            </view>
+            <view class="stat-item">
+              <text class="stat-label">互动次数</text>
+              <text class="stat-value">{{ chickenStats.interactionCount || 0 }}</text>
+            </view>
+            <view class="stat-item">
+              <text class="stat-label">总经验值</text>
+              <text class="stat-value">{{ chickenStats.totalExp || 0 }}</text>
+            </view>
+            <view class="stat-item">
+              <text class="stat-label">品种</text>
+              <text class="stat-value">{{ chickenStats.breed || '未知' }}</text>
             </view>
           </view>
         </view>
@@ -104,20 +120,25 @@
         <!-- 倒数日记录区 -->
         <view class="countdown-section">
           <text class="section-title">倒数日</text>
-          <view class="record-card">
+          <view v-for="schedule in countdownSchedules" :key="schedule.id" class="record-card">
             <view class="icon-area">
-              <view class="couple-icon"></view>
+              <view class="couple-icon" :style="{ backgroundColor: schedule.themeColor }"></view>
             </view>
             <view class="info-area">
-              <text class="main-text">距离见ta</text>
-              <text class="date-text">2025.12.20 星期六</text>
+              <text class="main-text">{{ schedule.title }}</text>
+              <text class="date-text">{{ schedule.targetDate }}</text>
               <view class="days-area">
-                <text class="days-number">0</text>
+                <text class="days-number">{{ schedule.daysLeft }}</text>
                 <view class="days-unit">
                   <text class="unit-text">DAYS</text>
                 </view>
               </view>
             </view>
+          </view>
+          
+          <!-- 如果没有倒数日日程，显示提示信息 -->
+          <view v-if="countdownSchedules.length === 0" class="empty-schedule">
+            <text class="empty-text">暂无倒数日日程</text>
           </view>
         </view>
         
@@ -127,20 +148,25 @@
         <!-- 纪念日记录区 -->
         <view class="memorial-section">
           <text class="section-title">纪念日</text>
-          <view class="record-card">
+          <view v-for="schedule in anniversarySchedules" :key="schedule.id" class="record-card">
             <view class="icon-area">
-              <view class="smiley-icon"></view>
+              <view class="smiley-icon" :style="{ backgroundColor: schedule.themeColor }"></view>
             </view>
             <view class="info-area">
-              <text class="main-text">与ta相识</text>
-              <text class="date-text">2025.11.30 星期日</text>
+              <text class="main-text">{{ schedule.title }}</text>
+              <text class="date-text">{{ schedule.targetDate }}</text>
               <view class="days-area">
-                <text class="days-number">20</text>
+                <text class="days-number">{{ schedule.daysSince }}</text>
                 <view class="days-unit">
                   <text class="unit-text">DAYS</text>
                 </view>
               </view>
             </view>
+          </view>
+          
+          <!-- 如果没有纪念日日程，显示提示信息 -->
+          <view v-if="anniversarySchedules.length === 0" class="empty-schedule">
+            <text class="empty-text">暂无纪念日日程</text>
           </view>
         </view>
         
@@ -173,6 +199,9 @@
 </template>
 
 <script>
+import { getSchedules, request, getChickenStats } from '@/utils/request.js';
+import { getColorByNumber } from '@/utils/colorUtils.js';
+
 export default {
   data() {
     return {
@@ -192,11 +221,17 @@ export default {
       // 聊天相关数据
       chatMessages: [],
       currentMessage: '',
-      chatScrollTop: 0
+      chatScrollTop: 0,
+      // 日程相关数据
+      countdownSchedules: [], // 倒数日日程列表
+      anniversarySchedules: [], // 纪念日日程列表
+      loadingSchedules: false, // 是否正在加载日程
+      // 小鸡统计数据
+      chickenStats: {} // 小鸡统计信息
     }
   },
   
-  onLoad() {
+  async onLoad() {
     // 初始化聊天消息
     this.chatMessages = [
       {
@@ -205,11 +240,129 @@ export default {
         time: this.formatTime(new Date())
       }
     ];
+    
+    // 获取小鸡统计数据
+    await this.loadChickenStats();
   },
+  
   methods: {
+    // 加载小鸡统计数据
+    async loadChickenStats() {
+      try {
+        const response = await getChickenStats();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          this.chickenStats = response.data.data || {};
+        } else {
+          console.error('获取小鸡统计数据失败:', response);
+        }
+      } catch (error) {
+        console.error('获取小鸡统计数据时出错:', error);
+      }
+    },
+    
     // 切换内部tab
     switchInternalTab(tab) {
       this.activeTab = tab
+      
+      // 如果切换到日程tab，则获取日程列表
+      if (tab === 'schedule') {
+        this.loadSchedules();
+      }
+      
+      // 如果切换到小鸡档案tab，则刷新小鸡统计数据
+      if (tab === 'profile') {
+        this.loadChickenStats();
+      }
+    },
+    
+    // 加载日程列表
+    async loadSchedules() {
+      if (this.loadingSchedules) return; // 防止重复加载
+      
+      this.loadingSchedules = true;
+      
+      try {
+        const response = await getSchedules();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          const schedules = response.data.data || [];
+          
+          // 清空现有数据
+          this.countdownSchedules = [];
+          this.anniversarySchedules = [];
+          
+          // 解析日程数据
+          schedules.forEach(schedule => {
+            // 解析日期
+            const targetDate = new Date(schedule.targetDate);
+            
+            // 计算天数差异
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // 设置时间为当天0点
+            const targetDateOnly = new Date(targetDate);
+            targetDateOnly.setHours(0, 0, 0, 0); // 设置时间为目标日期的0点
+            
+            // 计算天数差异
+            const timeDiff = targetDateOnly.getTime() - today.getTime();
+            const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+            
+            // 格式化日期显示
+            const formattedDate = this.formatDateWithWeekday(targetDate);
+            
+            // 根据类型处理日程
+            const scheduleData = {
+              id: schedule.scheduleId,
+              title: schedule.title,
+              description: schedule.description,
+              targetDate: formattedDate,
+              dayDiff: Math.abs(dayDiff), // 显示绝对值
+              isPast: dayDiff < 0, // 是否是过去的日期
+              isCompleted: schedule.isCompleted,
+              themeColor: getColorByNumber(schedule.themeColor),
+              themeColorNumber: schedule.themeColor,
+              originalDate: targetDate,
+              originalDayDiff: dayDiff // 保存原始天数差异用于判断
+            };
+            
+            if (schedule.type === 'countdown') {
+              // 倒数日：显示距离目标日期还有多少天
+              scheduleData.daysLeft = dayDiff > 0 ? dayDiff : 0;
+              this.countdownSchedules.push(scheduleData);
+            } else if (schedule.type === 'anniversary') {
+              // 纪念日：显示从目标日期到今天已经过去了多少天
+              scheduleData.daysSince = dayDiff <= 0 ? Math.abs(dayDiff) : 0;
+              this.anniversarySchedules.push(scheduleData);
+            }
+          });
+        } else {
+          console.error('获取日程列表失败:', response);
+          uni.showToast({
+            title: '获取日程失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('加载日程时出错:', error);
+        uni.showToast({
+          title: '网络错误',
+          icon: 'none'
+        });
+      } finally {
+        this.loadingSchedules = false;
+      }
+    },
+    
+    // 格式化日期为 YYYY.MM.DD 星期X 的格式
+    formatDateWithWeekday(date) {
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      
+      const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+      const weekday = weekdays[date.getDay()];
+      
+      return `${year}.${month}.${day} ${weekday}`;
     },
     
     // 跳转到创建页面
@@ -232,20 +385,49 @@ export default {
     },
     
     // 确认修改名称
-    confirmNameEdit() {
+    async confirmNameEdit() {
       if (this.newNickname.trim() !== '') {
-        this.chickenInfo.nickname = this.newNickname.trim();
-        // 添加昵称修改通知
-        this.chatMessages.push({
-          text: '昵称已更新为：' + this.chickenInfo.nickname,
-          sender: 'chicken',
-          time: this.formatTime(new Date())
-        });
-        uni.showToast({
-          title: '名称修改成功',
-          icon: 'success'
-        });
-        this.showNameEditModal = false;
+        try {
+          // 调用小鸡重命名接口
+          const response = await request({
+            url: '/api/chicken/rename',
+            method: 'POST',
+            data: {
+              newName: this.newNickname.trim()
+            }
+          });
+          
+          if (response.statusCode === 200 && response.data.code === 200) {
+            // 更新本地显示的昵称
+            this.chickenInfo.nickname = this.newNickname.trim();
+            
+            // 添加昵称修改通知
+            this.chatMessages.push({
+              text: '昵称已更新为：' + this.chickenInfo.nickname,
+              sender: 'chicken',
+              time: this.formatTime(new Date())
+            });
+            
+            uni.showToast({
+              title: '名称修改成功',
+              icon: 'success'
+            });
+          } else {
+            console.error('重命名失败:', response);
+            uni.showToast({
+              title: response.data.message || '重命名失败',
+              icon: 'none'
+            });
+          }
+        } catch (error) {
+          console.error('重命名请求失败:', error);
+          uni.showToast({
+            title: '网络错误',
+            icon: 'none'
+          });
+        } finally {
+          this.showNameEditModal = false;
+        }
       } else {
         uni.showToast({
           title: '名称不能为空',
@@ -526,6 +708,32 @@ export default {
   color: #000000;
 }
 
+/* 小鸡统计信息样式 */
+.chicken-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+}
+
+.chicken-stats .stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx 10rpx;
+}
+
+.chicken-stats .stat-label {
+  font-size: 24rpx;
+  color: #666666;
+  margin-bottom: 8rpx;
+}
+
+.chicken-stats .stat-value {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #000000;
+}
+
 /* 聊天界面样式 */
 .chat-section {
   padding: 30rpx;
@@ -611,6 +819,16 @@ export default {
 }
 
 /* 时光日程样式 */
+
+.empty-schedule {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999999;
+}
 
 .section-title {
   font-size: 28rpx;

@@ -112,7 +112,7 @@
               :class="{ 'tag-item--selected': tag.selected && !isEditingTags, 'tag-item--editing': isEditingTags && editingTagIndex === index }"
               @tap="isEditingTags ? startEditTagName(index) : selectTag(index)"
             >
-              <view class="tag-dot" :style="{ backgroundColor: tag.color }"></view>
+              <view class="tag-dot" :style="{ backgroundColor: getColorByNumber(tag.colorNumber) }"></view>
               <input 
                 v-if="isEditingTags && editingTagIndex === index" 
                 class="tag-input" 
@@ -395,6 +395,7 @@
 
 <script>
 import Matter from 'matter-js'
+import { getFocusTags, createFocusTag, updateFocusTag, deleteFocusTag } from '@/utils/request.js'
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
@@ -465,21 +466,18 @@ export default {
       deletingTagIndex: -1, // 正在删除的标签索引
       showCreateTagDialog: false, // 是否显示创建标签对话框
       newTagName: '', // 新标签名称
-      tagColors: [ // 可选的标签颜色
-        '#4CAF50', // 绿色
-        '#FF9800', // 橙色
-        '#F44336', // 红色
-        '#2196F3', // 蓝色
-        '#9C27B0', // 紫色
-        '#009688', // 青色
-        '#FF5722', // 深橙色
-        '#795548'  // 棕色
-      ],
+      COLOR_MAP: { // 颜色映射表
+        "1": "#FFCCCC",
+        "2": "#CCFFCC", 
+        "3": "#CCCCFF",
+        "4": "#FFFFCC",
+        "5": "#FFCCFF"
+      },
       tags: [
-        { name: '阅读', color: '#4CAF50', selected: true },
-        { name: '健身', color: '#FF9800', selected: false },
-        { name: '工作', color: '#F44336', selected: false },
-        { name: '专注', color: '#2196F3', selected: false }
+        { name: '阅读', colorNumber: 1, selected: true },
+        { name: '健身', colorNumber: 2, selected: false },
+        { name: '工作', colorNumber: 3, selected: false },
+        { name: '专注', colorNumber: 4, selected: false }
       ],
 
       
@@ -498,6 +496,12 @@ export default {
   onShow() {
     this.startPhysics()
     this.startAccelerometer()
+    
+    // 从本地存储获取用户设置的专注时长
+    const savedDuration = uni.getStorageSync('focusDuration');
+    if (savedDuration) {
+      this.focusDuration = savedDuration;
+    }
   },
   onHide() {
     this.stopPhysics()
@@ -845,22 +849,67 @@ export default {
 
 
     handleStartFocus() {
-      // 跳转到专注计时页面，传递当前设置的专注时长
-      // 将 HH:MM 格式转换为秒数
+      // 获取选中的标签作为场景
+      const selectedTag = this.tags.find(tag => tag.selected);
+      const scene = selectedTag ? selectedTag.name : this.focusScene;
+      
+      // 跳转到专注计时页面，传递当前设置的专注时长和场景
+      // 将 HH:MM 格式转换为分钟数
       const timeParts = this.focusDuration.split(':');
-      const durationInSeconds = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
+      const durationInMinutes = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
       
       uni.navigateTo({
-        url: `/pages/focused-timer/index?duration=${durationInSeconds}&from=home`
+        url: `/pages/focused-timer/index?duration=${durationInMinutes}&scene=${encodeURIComponent(scene)}&from=home`
       })
     },
     
 
     
     // 显示标签选择器
-    showTagSelectorModal() {
+    async showTagSelectorModal() {
+      // 从后端获取标签列表
+      await this.loadTagsFromServer();
       this.showTagSelector = true
     },
+    
+    // 从服务器加载标签列表
+    async loadTagsFromServer() {
+      try {
+        uni.showLoading({
+          title: '加载中...'
+        });
+        
+        const response = await getFocusTags();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          // 将服务器返回的标签转换为页面使用的格式
+          const serverTags = response.data.data || [];
+          this.tags = serverTags.map(tag => ({
+            name: tag.tagName,
+            colorNumber: tag.colorNumber || 1, // 使用后端返回的颜色编号
+            selected: false // 默认不选中
+          }));
+          
+          console.log('成功加载标签列表:', this.tags);
+        } else {
+          console.error('获取标签列表失败:', response.data);
+          uni.showToast({
+            title: response.data.message || '获取标签失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('加载标签列表失败:', error);
+        uni.showToast({
+          title: '网络请求失败',
+          icon: 'none'
+        });
+      } finally {
+        uni.hideLoading();
+      }
+    },
+    
+
     
     // 关闭标签选择器
     closeTagSelector() {
@@ -931,7 +980,7 @@ export default {
     },
     
     // 创建新标签
-    createNewTag() {
+    async createNewTag() {
       if (this.isEditingTags) {
         uni.showToast({
           title: '请先完成当前编辑',
@@ -940,8 +989,48 @@ export default {
         return
       }
       
-      // 显示创建新标签的输入框
-      this.showCreateTagDialog = true
+      try {
+        uni.showLoading({
+          title: '创建中...'
+        });
+        
+        // 创建默认标签名称
+        const newTagName = '新标签';
+        const response = await createFocusTag({ tagName: newTagName }); // 只传递tagName，颜色由后端分配
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          // 重新加载标签列表以获取新创建的标签
+          await this.loadTagsFromServer();
+          
+          // 选中新创建的标签
+          const newTag = this.tags.find(tag => tag.name === newTagName);
+          if (newTag) {
+            // 取消之前选中的标签
+            this.tags.forEach(tag => tag.selected = false);
+            // 选中新标签
+            newTag.selected = true;
+          }
+          
+          uni.showToast({
+            title: '标签创建成功',
+            icon: 'success'
+          });
+        } else {
+          console.error('创建标签失败:', response.data);
+          uni.showToast({
+            title: response.data.message || '创建标签失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('创建标签失败:', error);
+        uni.showToast({
+          title: '网络请求失败',
+          icon: 'none'
+        });
+      } finally {
+        uni.hideLoading();
+      }
     },
     
     // 切换编辑模式
@@ -963,12 +1052,65 @@ export default {
     },
     
     // 完成编辑标签名称
-    finishEditTagName() {
+    async finishEditTagName() {
       if (this.editingTagIndex >= 0 && this.editingTagName.trim() !== '') {
-        this.tags[this.editingTagIndex].name = this.editingTagName.trim()
+        try {
+          uni.showLoading({
+            title: '更新中...'
+          });
+          
+          // 获取完整的标签列表以找到标签ID
+          const response = await getFocusTags();
+          
+          if (response.statusCode === 200 && response.data.code === 200) {
+            const allTags = response.data.data || [];
+            const tagToUpdate = allTags.find(tag => tag.tagName === this.tags[this.editingTagIndex].name);
+            
+            if (tagToUpdate) {
+              const updateResponse = await updateFocusTag(tagToUpdate.tagId, { tagName: this.editingTagName.trim() });
+              
+              if (updateResponse.statusCode === 200 && updateResponse.data.code === 200) {
+                // 重新加载标签列表以获取最新的标签数据
+                await this.loadTagsFromServer();
+                
+                uni.showToast({
+                  title: '标签更新成功',
+                  icon: 'success'
+                });
+              } else {
+                console.error('更新标签失败:', updateResponse.data);
+                uni.showToast({
+                  title: updateResponse.data.message || '更新标签失败',
+                  icon: 'none'
+                });
+              }
+            } else {
+              uni.showToast({
+                title: '未找到要更新的标签',
+                icon: 'none'
+              });
+            }
+          }
+        } catch (error) {
+          console.error('更新标签失败:', error);
+          uni.showToast({
+            title: '网络请求失败',
+            icon: 'none'
+          });
+        } finally {
+          this.editingTagIndex = -1;
+          this.editingTagName = '';
+          uni.hideLoading();
+        }
+      } else {
+        this.editingTagIndex = -1;
+        this.editingTagName = '';
       }
-      this.editingTagIndex = -1
-      this.editingTagName = ''
+    },
+    
+    // 根据颜色编号获取颜色值
+    getColorByNumber(colorNumber) {
+      return this.COLOR_MAP[colorNumber] || this.COLOR_MAP["1"]; // 默认返回第一个颜色
     },
     
     // 显示删除确认弹窗
@@ -978,24 +1120,63 @@ export default {
     },
     
     // 确认删除标签
-    confirmDeleteTag() {
+    async confirmDeleteTag() {
       if (this.deletingTagIndex >= 0) {
-        // 如果删除的是选中的标签，需要重新选择一个标签
-        if (this.tags[this.deletingTagIndex].selected) {
-          // 如果还有其他标签，选择第一个作为新的选中标签
-          if (this.tags.length > 1) {
-            const newIndex = this.deletingTagIndex === 0 ? 1 : 0
-            this.tags[newIndex].selected = true
-            this.focusScene = this.tags[newIndex].name
+        try {
+          uni.showLoading({
+            title: '删除中...'
+          });
+          
+          // 获取完整的标签列表以找到标签ID
+          const response = await getFocusTags();
+          
+          if (response.statusCode === 200 && response.data.code === 200) {
+            const allTags = response.data.data || [];
+            const tagToDelete = allTags.find(tag => tag.tagName === this.tags[this.deletingTagIndex].name);
+            
+            if (tagToDelete) {
+              const deleteResponse = await deleteFocusTag(tagToDelete.tagId);
+              
+              if (deleteResponse.statusCode === 200 && deleteResponse.data.code === 200) {
+                // 重新加载标签列表以获取最新的标签数据
+                await this.loadTagsFromServer();
+                
+                // 如果当前没有标签被选中，选中第一个标签（如果存在）
+                if (!this.tags.some(tag => tag.selected) && this.tags.length > 0) {
+                  this.tags[0].selected = true;
+                  this.focusScene = this.tags[0].name;
+                }
+                
+                uni.showToast({
+                  title: '标签删除成功',
+                  icon: 'success'
+                });
+              } else {
+                console.error('删除标签失败:', deleteResponse.data);
+                uni.showToast({
+                  title: deleteResponse.data.message || '删除标签失败',
+                  icon: 'none'
+                });
+              }
+            } else {
+              uni.showToast({
+                title: '未找到要删除的标签',
+                icon: 'none'
+              });
+            }
           }
+        } catch (error) {
+          console.error('删除标签失败:', error);
+          uni.showToast({
+            title: '网络请求失败',
+            icon: 'none'
+          });
+        } finally {
+          // 重置状态
+          this.deletingTagIndex = -1;
+          this.showDeleteConfirmDialog = false;
+          uni.hideLoading();
         }
-        
-        // 删除标签
-        this.tags.splice(this.deletingTagIndex, 1)
-        
-        // 重置状态
-        this.deletingTagIndex = -1
-        this.showDeleteConfirmDialog = false
       }
     },
     
@@ -1006,7 +1187,7 @@ export default {
     },
         
     // 确认创建新标签
-    confirmCreateTag() {
+    async confirmCreateTag() {
       if (this.newTagName.trim() === '') {
         uni.showToast({
           title: '请输入标签名称',
@@ -1015,35 +1196,53 @@ export default {
         return
       }
           
-      // 检查标签名称是否已存在
-      const existingTag = this.tags.find(tag => tag.name === this.newTagName.trim())
-      if (existingTag) {
+      try {
+        uni.showLoading({
+          title: '创建中...'
+        });
+        
+        // 创建标签并发送到后端
+        const response = await createFocusTag({ 
+          tagName: this.newTagName.trim() 
+        });
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          // 重新加载标签列表以获取新创建的标签
+          await this.loadTagsFromServer();
+          
+          // 选中新创建的标签
+          const newTag = this.tags.find(tag => tag.name === this.newTagName.trim());
+          if (newTag) {
+            // 取消之前选中的标签
+            this.tags.forEach(tag => tag.selected = false);
+            // 选中新标签
+            newTag.selected = true;
+          }
+          
+          // 重置状态
+          this.newTagName = '';
+          this.showCreateTagDialog = false;
+          
+          uni.showToast({
+            title: '标签创建成功',
+            icon: 'success'
+          });
+        } else {
+          console.error('创建标签失败:', response.data);
+          uni.showToast({
+            title: response.data.message || '创建标签失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('创建标签失败:', error);
         uni.showToast({
-          title: '标签名称已存在',
+          title: '网络请求失败',
           icon: 'none'
-        })
-        return
+        });
+      } finally {
+        uni.hideLoading();
       }
-          
-      // 自动选择一个颜色（循环使用预设颜色）
-      const colorIndex = this.tags.length % this.tagColors.length
-      const selectedColor = this.tagColors[colorIndex]
-          
-      // 添加新标签
-      this.tags.push({
-        name: this.newTagName.trim(),
-        color: selectedColor,
-        selected: false
-      })
-          
-      // 重置状态
-      this.newTagName = ''
-      this.showCreateTagDialog = false
-          
-      uni.showToast({
-        title: '标签创建成功',
-        icon: 'success'
-      })
     },
         
     // 取消创建标签

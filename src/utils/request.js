@@ -1,5 +1,5 @@
 // 网络请求工具
-const BASE_URL = 'http://192.168.1.157:8081'; // 后端IP地址和端口
+const BASE_URL = 'http://192.168.1.171:8081'; // 后端IP地址和端口
 
 // 通用请求方法
 function request(options) {
@@ -120,6 +120,24 @@ function endFocus(data) {
   });
 }
 
+// 中断专注
+function cancelFocus(data) {
+  return request({
+    url: '/api/focus/cancel',
+    method: 'POST',
+    data: data
+  });
+}
+
+// 继续专注
+function continueFocus(data) {
+  return request({
+    url: '/api/focus/continue',
+    method: 'POST',
+    data: data
+  });
+}
+
 // 获取专注记录列表
 function getFocusList(params = {}) {
   // 将参数转换为查询字符串
@@ -136,6 +154,50 @@ function getFocusList(params = {}) {
   });
 }
 
+// 获取标签列表
+function getFocusTags(params = {}) {
+  // 将参数转换为查询字符串
+  const queryString = Object.keys(params)
+    .filter(key => params[key] !== undefined && params[key] !== null)
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .join('&');
+  
+  const url = queryString ? `/api/focus-tags/?${queryString}` : '/api/focus-tags/';
+  
+  return request({
+    url: url,
+    method: 'GET'
+  });
+}
+
+// 创建标签
+// 前端创建标签时只需传 tagName 和 icon（可选）
+// 后端自动分配 1~5 之间的颜色编号
+function createFocusTag(data) {
+  return request({
+    url: '/api/focus-tags/',
+    method: 'POST',
+    data: data
+  });
+}
+
+// 更新标签
+function updateFocusTag(tagId, data) {
+  return request({
+    url: `/api/focus-tags/${tagId}`,
+    method: 'PUT',
+    data: data
+  });
+}
+
+// 删除标签
+function deleteFocusTag(tagId) {
+  return request({
+    url: `/api/focus-tags/${tagId}`,
+    method: 'DELETE'
+  });
+}
+
 // 默认导出
 export default {
   request,
@@ -147,4 +209,65 @@ export default {
 };
 
 // 命名导出专注功能相关API
-export { startFocus, endFocus, getFocusList };
+export { startFocus, endFocus, cancelFocus, continueFocus, getFocusList };
+
+// 命名导出标签管理相关API
+export { getFocusTags, createFocusTag, updateFocusTag, deleteFocusTag };
+
+// 日程管理相关API
+function createSchedule(data) {
+  return request({
+    url: '/api/schedules/',
+    method: 'POST',
+    data: data
+  });
+}
+
+function getSchedules() {
+  return request({
+    url: '/api/schedules/',
+    method: 'GET'
+  });
+}
+
+function getUpcomingSchedules() {
+  return request({
+    url: '/api/schedules/upcoming',
+    method: 'GET'
+  });
+}
+
+function getScheduleStats() {
+  return request({
+    url: '/api/schedules/stats',
+    method: 'GET'
+  });
+}
+
+function completeSchedule(scheduleId) {
+  return request({
+    url: `/api/schedules/${scheduleId}/complete`,
+    method: 'PUT'
+  });
+}
+
+function deleteSchedule(scheduleId) {
+  return request({
+    url: `/api/schedules/${scheduleId}`,
+    method: 'DELETE'
+  });
+}
+
+// 命名导出日程管理相关API
+export { createSchedule, getSchedules, getUpcomingSchedules, getScheduleStats, completeSchedule, deleteSchedule };
+
+// 获取小鸡统计信息
+function getChickenStats() {
+  return request({
+    url: '/api/chicken/stats',
+    method: 'GET'
+  });
+}
+
+// 命名导出通用请求方法
+export { request, getChickenStats };

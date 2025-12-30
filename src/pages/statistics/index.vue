@@ -252,33 +252,143 @@ export default {
     async loadFocusData() {
       this.loading = true;
       try {
-        // 获取专注记录
-        const response = await getFocusList({
-          page: 1,
-          size: 100 // 获取最近的100条记录
-        });
+        // 使用本地示例数据替代网络请求
+        const sampleData = [
+          {
+            focusId: '1',
+            duration: 45, // 专注时长（分钟）
+            actualDuration: 42, // 实际专注时长（分钟）
+            scene: '学习',
+            startTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24小时前
+            endTime: new Date(Date.now() - 24 * 60 * 60 * 1000 + 42 * 60 * 1000).toISOString(),
+            coinsEarned: 42, // 获得谷物币
+            expEarned: 42, // 获得经验值
+            isCompleted: true,
+            isFailed: false
+          },
+          {
+            focusId: '2',
+            duration: 60, // 专注时长（分钟）
+            actualDuration: 55, // 实际专注时长（分钟）
+            scene: '工作',
+            startTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2天前
+            endTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 55 * 60 * 1000).toISOString(),
+            coinsEarned: 55, // 获得谷物币
+            expEarned: 55, // 获得经验值
+            isCompleted: true,
+            isFailed: false
+          },
+          {
+            focusId: '3',
+            duration: 30, // 专注时长（分钟）
+            actualDuration: 25, // 实际专注时长（分钟）
+            scene: '阅读',
+            startTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3天前
+            endTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 25 * 60 * 1000).toISOString(),
+            coinsEarned: 25, // 获得谷物币
+            expEarned: 25, // 获得经验值
+            isCompleted: true,
+            isFailed: false
+          },
+          {
+            focusId: '4',
+            duration: 90, // 专注时长（分钟）
+            actualDuration: 85, // 实际专注时长（分钟）
+            scene: '学习',
+            startTime: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4天前
+            endTime: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 + 85 * 60 * 1000).toISOString(),
+            coinsEarned: 85, // 获得谷物币
+            expEarned: 85, // 获得经验值
+            isCompleted: true,
+            isFailed: false
+          },
+          {
+            focusId: '5',
+            duration: 120, // 专注时长（分钟）
+            actualDuration: 100, // 实际专注时长（分钟）
+            scene: '运动',
+            startTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5天前
+            endTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 100 * 60 * 1000).toISOString(),
+            coinsEarned: 100, // 获得谷物币
+            expEarned: 100, // 获得经验值
+            isCompleted: true,
+            isFailed: false
+          },
+          {
+            focusId: '6',
+            duration: 40, // 专注时长（分钟）
+            actualDuration: 35, // 实际专注时长（分钟）
+            scene: '工作',
+            startTime: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), // 6天前
+            endTime: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000 + 35 * 60 * 1000).toISOString(),
+            coinsEarned: 35, // 获得谷物币
+            expEarned: 35, // 获得经验值
+            isCompleted: true,
+            isFailed: false
+          },
+          {
+            focusId: '7',
+            duration: 75, // 专注时长（分钟）
+            actualDuration: 70, // 实际专注时长（分钟）
+            scene: '学习',
+            startTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7天前
+            endTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 70 * 60 * 1000).toISOString(),
+            coinsEarned: 70, // 获得谷物币
+            expEarned: 70, // 获得经验值
+            isCompleted: true,
+            isFailed: false
+          },
+          {
+            focusId: '8',
+            duration: 50, // 专注时长（分钟）
+            actualDuration: 45, // 实际专注时长（分钟）
+            scene: '阅读',
+            startTime: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8天前
+            endTime: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
+            coinsEarned: 45, // 获得谷物币
+            expEarned: 45, // 获得经验值
+            isCompleted: true,
+            isFailed: false
+          },
+          {
+            focusId: '9',
+            duration: 35, // 专注时长（分钟）
+            actualDuration: 30, // 实际专注时长（分钟）
+            scene: '工作',
+            startTime: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(), // 9天前
+            endTime: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(),
+            coinsEarned: 30, // 获得谷物币
+            expEarned: 30, // 获得经验值
+            isCompleted: true,
+            isFailed: false
+          },
+          {
+            focusId: '10',
+            duration: 60, // 专注时长（分钟）
+            actualDuration: 50, // 实际专注时长（分钟）
+            scene: '运动',
+            startTime: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10天前
+            endTime: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 50 * 60 * 1000).toISOString(),
+            coinsEarned: 50, // 获得谷物币
+            expEarned: 50, // 获得经验值
+            isCompleted: true,
+            isFailed: false
+          }
+        ];
         
-        if (response.statusCode === 200 && response.data.code === 200) {
-          this.focusRecords = response.data.data || [];
-          this.processFocusData();
-          
-          // 等待DOM更新后绘制图表
-          this.$nextTick(() => {
-            setTimeout(() => {
-              this.drawRingChart();
-            }, 100);
-          });
-        } else {
-          console.error('获取专注记录失败:', response.data);
-          uni.showToast({
-            title: response.data.message || '获取专注记录失败',
-            icon: 'none'
-          });
-        }
+        this.focusRecords = sampleData;
+        this.processFocusData();
+        
+        // 等待DOM更新后绘制图表
+        this.$nextTick(() => {
+          setTimeout(() => {
+            this.drawRingChart();
+          }, 100);
+        });
       } catch (error) {
-        console.error('获取专注记录失败:', error);
+        console.error('加载示例数据失败:', error);
         uni.showToast({
-          title: '网络请求失败',
+          title: '加载数据失败',
           icon: 'none'
         });
       } finally {

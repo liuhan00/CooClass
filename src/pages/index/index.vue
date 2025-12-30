@@ -45,10 +45,18 @@
         </view>
       </view>
       
-      <!-- 喂食按钮 -->
-      <view class="feed-button" @tap="feedChicken">
-        <text class="feed-icon">🍗</text>
-        <text class="feed-text">喂食</text>
+      <view class="button-container">
+        <!-- 喂食按钮 -->
+        <view class="feed-button" @tap="feedChicken">
+          <text class="feed-icon">🍗</text>
+          <text class="feed-text">喂食</text>
+        </view>
+        
+        <!-- 商店按钮 -->
+        <view class="feed-button" @tap="openShop">
+          <text class="feed-icon">🛒</text>
+          <text class="feed-text">商店</text>
+        </view>
       </view>
       <text class="hero-name">{{ brandName }}</text>
       <text class="hero-tagline">小鸡陪你专注成长</text>
@@ -160,11 +168,12 @@
         <scroll-view class="snacks-list" scroll-y="true">
           <view 
             v-for="(snack, index) in snacks" 
-            :key="index"
+            :key="snack.foodId || index"
             class="snack-item"
           >
-            <view class="snack-icon" :class="`snack-icon--${snack.type}`">{{ snack.icon }}
-              <text class="snack-exp">{{ snack.cost }}</text>
+            <view class="snack-icon">
+              <image :src="snack.icon" class="snack-icon-image"></image>
+              <text class="snack-exp">+{{ snack.expValue }}</text>
             </view>
             <view class="snack-info">
               <text class="snack-name">{{ snack.name }}</text>
@@ -172,8 +181,8 @@
             </view>
             <button 
               class="feed-snack-button" 
-              :class="{ 'feed-snack-button--disabled': snack.quantity < snack.cost }"
-              :disabled="snack.quantity < snack.cost"
+              :class="{ 'feed-snack-button--disabled': snack.quantity <= 0 }"
+              :disabled="snack.quantity <= 0"
               @tap="feedSnack(snack)"
             >
               喂食
@@ -240,20 +249,36 @@
     <view class="chicken-info-overlay" @tap="closeChickenInfoModal"></view>
     <view class="chicken-info-container">
       <view class="chicken-info-header">
-        <text class="chicken-nickname">{{ chickenInfo.nickname }}</text>
+        <text class="chicken-nickname">{{ chickenInfo.name }}</text>
       </view>
       <view class="chicken-stats">
         <view class="stat-item">
-          <text class="stat-label">当前等级</text>
+          <text class="stat-label">成长阶段</text>
+          <text class="stat-value">{{ chickenInfo.growthStage }}</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-label">等级</text>
           <text class="stat-value">{{ chickenInfo.level }}</text>
         </view>
         <view class="stat-item">
-          <text class="stat-label">已养天数</text>
-          <text class="stat-value">{{ chickenInfo.days }}天</text>
+          <text class="stat-label">经验值</text>
+          <text class="stat-value">{{ chickenInfo.exp }}</text>
         </view>
         <view class="stat-item">
-          <text class="stat-label">金币数量</text>
-          <text class="stat-value">{{ chickenInfo.coins }}</text>
+          <text class="stat-label">快乐度</text>
+          <text class="stat-value">{{ chickenInfo.happiness }}</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-label">健康度</text>
+          <text class="stat-value">{{ chickenInfo.health }}</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-label">饥饿度</text>
+          <text class="stat-value">{{ chickenInfo.hunger }}</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-label">品种</text>
+          <text class="stat-value">{{ chickenInfo.breed }}</text>
         </view>
       </view>
       <view class="chicken-info-footer">
@@ -395,7 +420,7 @@
 
 <script>
 import Matter from 'matter-js'
-import { getFocusTags, createFocusTag, updateFocusTag, deleteFocusTag } from '@/utils/request.js'
+import { getFocusTags, createFocusTag, updateFocusTag, deleteFocusTag, interactWithChicken, getChickenStats, getFoodsList, getUserFoodInventory, feedChicken } from '@/utils/request.js'
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
@@ -427,19 +452,21 @@ export default {
         days: 24,
         weight: 1.0,
         expCurrent: 715,
-        expTotal: 1000
+        expTotal: 1000,
+        // 从API获取的小鸡统计数据
+        growthStage: '未知',
+        daysSinceCreation: 0,
+        feedCount: 0,
+        interactionCount: 0,
+        totalExp: 0,
+        breed: '普通鸡'
       },
       showChickenInfoModal: false, // 是否显示小鸡信息弹窗,
       showFeedModal: false, // 是否显示喂食弹窗
       // 零食数据
-      snacks: [
-        { name: '三文鱼', type: 'salmon', icon: '🐟', cost: 50, quantity: 34 },
-        { name: '牛排', type: 'steak', icon: '🥩', cost: 50, quantity: 50 },
-        { name: '巧克力', type: 'chocolate', icon: '🍫', cost: 50, quantity: 100 },
-        { name: '烤鸡腿', type: 'chicken', icon: '🍗', cost: 25, quantity: 10 },
-        { name: '布丁', type: 'pudding', icon: '🍮', cost: 25, quantity: 4 },
-        { name: '汉堡', type: 'burger', icon: '🍔', cost: 25, quantity: 5 }
-      ],
+      snacks: [],
+      // 零食库存映射
+      snackInventory: {}, // 用foodId作为key，存储数量
       chicks: [],
       chickBodyMap: {}, // 存储body与chick信息的映射
       activeChickId: null,
@@ -752,7 +779,7 @@ export default {
     },
     
     // 全局触摸结束事件
-    handlePlaygroundTouchEnd(event) {
+    async handlePlaygroundTouchEnd(event) {
       console.log('结束拖拽主页小鸡');
       if (this.activeChickId) {
         // 查找正在拖拽的小鸡
@@ -770,6 +797,21 @@ export default {
         }
       }
       this.resetDragState()
+      
+      // 调用小鸡互动接口 - 和小鸡玩耍
+      try {
+        const response = await interactWithChicken({
+          interactionType: 'play'
+        });
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          console.log('小鸡玩耍互动成功:', response.data.message);
+        } else {
+          console.error('小鸡玩耍互动失败:', response);
+        }
+      } catch (error) {
+        console.error('调用小鸡玩耍互动接口失败:', error);
+      }
       
       // 阻止默认行为和冒泡
       if (event) {
@@ -835,13 +877,43 @@ export default {
     },
 
     // 显示小鸡信息弹窗
-    openChickenInfoModal() {
-      this.showChickenInfoModal = true
+    async openChickenInfoModal() {
+      // 获取小鸡统计数据
+      try {
+        const response = await getChickenStats();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          const data = response.data.data || {};
+          // 更新本地显示的小鸡信息
+          this.chickenInfo.chickenId = data.chickenId || 1;
+          this.chickenInfo.growthStage = data.growthStage || '未知';
+          this.chickenInfo.breed = data.breed || '普通鸡';
+          this.chickenInfo.name = data.name || '无名小鸡';
+          this.chickenInfo.level = data.level || 0;
+          this.chickenInfo.exp = data.exp || 0;
+          this.chickenInfo.happiness = data.happiness || 0;
+          this.chickenInfo.health = data.health || 0;
+          this.chickenInfo.hunger = data.hunger || 0;
+        } else {
+          console.error('获取小鸡统计数据失败:', response);
+        }
+      } catch (error) {
+        console.error('获取小鸡统计数据时出错:', error);
+      }
+      
+      this.showChickenInfoModal = true;
     },
 
     // 关闭小鸡信息弹窗
     closeChickenInfoModal() {
       this.showChickenInfoModal = false
+    },
+    
+    // 跳转到时光模块页面
+    goToTimeModule() {
+      uni.switchTab({
+        url: '/pages/time-module/index'
+      });
     },
         
 
@@ -1257,8 +1329,76 @@ export default {
 
     
     // 喂食小鸡
-    feedChicken() {
-      this.showFeedModal = true
+    async feedChicken() {
+      await this.loadSnacks();
+      this.showFeedModal = true;
+    },
+    
+    // 打开商店
+    openShop() {
+      uni.navigateTo({
+        url: '/pages/shop/index'
+      });
+    },
+    
+    // 加载零食数据
+    async loadSnacks() {
+      try {
+        // 获取零食列表
+        const foodsResponse = await getFoodsList();
+        
+        if (foodsResponse.statusCode === 200 && foodsResponse.data.code === 200) {
+          const foods = foodsResponse.data.data || [];
+          
+          // 获取用户零食库存
+          const inventoryResponse = await getUserFoodInventory();
+          
+          if (inventoryResponse.statusCode === 200 && inventoryResponse.data.code === 200) {
+            const inventoryList = inventoryResponse.data.data || [];
+            
+            // 创建库存映射，以foodId为key
+            const inventoryMap = {};
+            inventoryList.forEach(item => {
+              inventoryMap[item.foodId] = item.quantity;
+            });
+            
+            // 合并零食列表和库存信息
+            this.snacks = foods.map(food => {
+              return {
+                foodId: food.foodId,
+                name: food.name,
+                icon: food.icon, // 使用API返回的图标路径
+                expValue: food.expValue, // 经验值
+                quantity: inventoryMap[food.foodId] || 0 // 用户拥有的数量
+              };
+            });
+          } else {
+            console.error('获取用户零食库存失败:', inventoryResponse);
+            // 即使库存获取失败，也显示零食列表，但数量为0
+            this.snacks = foods.map(food => {
+              return {
+                foodId: food.foodId,
+                name: food.name,
+                icon: food.icon,
+                expValue: food.expValue,
+                quantity: 0
+              };
+            });
+          }
+        } else {
+          console.error('获取零食列表失败:', foodsResponse);
+          uni.showToast({
+            title: '获取零食列表失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('加载零食数据时出错:', error);
+        uni.showToast({
+          title: '加载零食数据失败',
+          icon: 'none'
+        });
+      }
     },
     
     // 关闭喂食弹窗
@@ -1267,36 +1407,79 @@ export default {
     },
     
     // 喂食零食
-    feedSnack(snack) {
-      if (snack.quantity < snack.cost) {
+    async feedSnack(snack) {
+      if (snack.quantity <= 0) {
         uni.showToast({
           title: `道具不足，无法喂食${snack.name}`,
           icon: 'none'
-        })
-        return
+        });
+        return;
       }
       
-      // 减少道具数量
-      snack.quantity -= snack.cost
-      
-      // 增加小鸡经验值
-      this.chickenInfo.expCurrent += snack.cost
-      
-      uni.showToast({
-        title: `喂食${snack.name}成功，获得${snack.cost}点经验值`,
-        icon: 'none'
-      })
-      
-      // 检查是否升级
-      if (this.chickenInfo.expCurrent >= this.chickenInfo.expTotal) {
-        this.chickenInfo.level++
-        this.chickenInfo.expCurrent -= this.chickenInfo.expTotal
-        this.chickenInfo.expTotal = Math.floor(this.chickenInfo.expTotal * 1.2) // 下一级经验需求增加20%
+      try {
+        uni.showLoading({
+          title: '喂食中...'
+        });
         
+        // 获取用户ID
+        const userInfo = uni.getStorageSync('userInfo') || {};
+        const userId = userInfo.userId || userInfo.id;
+        
+        if (!userId) {
+          uni.showToast({
+            title: '获取用户信息失败',
+            icon: 'none'
+          });
+          return;
+        }
+        
+        // 调用喂食API
+        const feedData = {
+          userId: userId,
+          chickenId: this.chickenInfo.chickenId || 1,
+          foodId: snack.foodId,
+          quantity: 1
+        };
+        
+        const response = await feedChicken(feedData);
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          // 喂食成功，更新本地数据
+          snack.quantity -= 1;
+          
+          // 更新小鸡经验值
+          this.chickenInfo.expCurrent += snack.expValue;
+          
+          uni.showToast({
+            title: `喂食${snack.name}成功，获得${snack.expValue}点经验值`,
+            icon: 'none'
+          });
+          
+          // 检查是否升级
+          if (this.chickenInfo.expCurrent >= this.chickenInfo.expTotal) {
+            this.chickenInfo.level++;
+            this.chickenInfo.expCurrent -= this.chickenInfo.expTotal;
+            this.chickenInfo.expTotal = Math.floor(this.chickenInfo.expTotal * 1.2); // 下一级经验需求增加20%
+            
+            uni.showToast({
+              title: `恭喜！小鸡升级到Lv.${this.chickenInfo.level}！`,
+              icon: 'none'
+            });
+          }
+        } else {
+          uni.showToast({
+            title: response.data.message || '喂食失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('喂食失败:', error);
         uni.showToast({
-          title: `恭喜！小鸡升级到Lv.${this.chickenInfo.level}！`,
+          title: '喂食失败',
           icon: 'none'
-        })
+        });
+      } finally {
+        uni.hideLoading();
       }
     },
     
@@ -1371,6 +1554,14 @@ export default {
   transform-origin: top left;
 }
 
+/* 按钮容器 */
+.button-container {
+  display: flex;
+  justify-content: center;
+  gap: 20rpx;
+  margin-top: 20rpx;
+}
+
 /* 喂食按钮 */
 .feed-button {
   display: flex;
@@ -1380,9 +1571,10 @@ export default {
   border: 2rpx solid #FF9800;
   border-radius: 40rpx;
   padding: 15rpx 30rpx;
-  margin-top: 20rpx;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  flex: 1;
+  max-width: 300rpx;
 }
 
 .feed-button:active {
@@ -1482,9 +1674,15 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40rpx;
   margin-right: 20rpx;
   position: relative;
+  background-color: #f0f0f0;
+}
+
+.snack-icon-image {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
 }
 
 .snack-icon--salmon {

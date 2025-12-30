@@ -89,6 +89,8 @@
 </template>
 
 <script>
+import { createSchedule } from '@/utils/request.js';
+
 export default {
   data() {
     return {
@@ -188,7 +190,7 @@ export default {
     },
     
     // 创建记录
-    createRecord() {
+    async createRecord() {
       // 表单校验
       if (!this.formData.title) {
         uni.showToast({
@@ -208,23 +210,47 @@ export default {
       
       // 准备发送给后端的数据
       const submitData = {
-        ...this.formData,
-        themeColor: this.formData.themeColorNumber // 发送颜色数字而非颜色值
+        title: this.formData.title,
+        type: this.currentType === 'countdown' ? 'countdown' : 'anniversary', // API需要 'countdown' 或 'anniversary'
+        targetDate: this.formData.date,
+        themeColor: this.formData.themeColorNumber, // 发送颜色数字而非颜色值
+        description: this.formData.selectedIcons.join(',') || this.formData.title // 使用选中的标签作为描述
+      };
+      
+      try {
+        uni.showLoading({
+          title: '创建中...'
+        });
+        
+        // 调用API创建日程
+        const response = await createSchedule(submitData);
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          uni.hideLoading();
+          uni.showToast({
+            title: '创建成功',
+            icon: 'success'
+          });
+          
+          // 返回上一页
+          setTimeout(() => {
+            uni.navigateBack();
+          }, 1000);
+        } else {
+          uni.hideLoading();
+          uni.showToast({
+            title: response.data.message || '创建失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        uni.hideLoading();
+        console.error('创建日程失败:', error);
+        uni.showToast({
+          title: '网络错误',
+          icon: 'none'
+        });
       }
-      
-      // 提交表单数据
-      console.log('提交表单数据:', submitData)
-      
-      // 这里应该调用API保存数据
-      uni.showToast({
-        title: '创建成功',
-        icon: 'success'
-      })
-      
-      // 返回上一页
-      setTimeout(() => {
-        uni.navigateBack()
-      }, 1000)
     }
   }
 }

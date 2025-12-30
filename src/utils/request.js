@@ -264,10 +264,53 @@ export { createSchedule, getSchedules, getUpcomingSchedules, getScheduleStats, c
 // 获取小鸡统计信息
 function getChickenStats() {
   return request({
-    url: '/api/chicken/stats',
+    url: '/api/chicken/info',
     method: 'GET'
   });
 }
 
+// 与小鸡互动
+function interactWithChicken(data) {
+  return request({
+    url: '/api/chicken/interact',
+    method: 'POST',
+    data: data
+  });
+}
+
+// 获取食物列表
+function getFoodsList() {
+  return request({
+    url: '/api/foods/',
+    method: 'GET'
+  });
+}
+
+// 获取用户食物库存
+function getUserFoodInventory() {
+  return request({
+    url: '/api/foods/inventory',
+    method: 'GET'
+  });
+}
+
+// 购买食物
+function purchaseFood(data) {
+  return request({
+    url: '/api/foods/purchase',
+    method: 'POST',
+    data: data
+  });
+}
+
+// 喂食小鸡
+function feedChicken(data) {
+  return request({
+    url: '/api/chicken/feed',
+    method: 'POST',
+    data: data
+  });
+}
+
 // 命名导出通用请求方法
-export { request, getChickenStats };
+export { request, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, feedChicken };

@@ -8,6 +8,10 @@
       <view class="user-info">
         <text class="username">{{ userInfo.username }}</text>
         <text class="user-id">ID: {{ userInfo.userId }}</text>
+        <view class="user-coin">
+          <text class="coin-icon">💰</text>
+          <text class="coin-count">{{ userInfo.coins || 0 }}</text>
+        </view>
       </view>
       <view class="edit-icon" @tap="editProfile">
         <text>✏️</text>
@@ -105,7 +109,8 @@ export default {
       userInfo: {
         username: '用户名',
         userId: '123456789',
-        avatar: '/static/logo.png'
+        avatar: '/static/logo.png',
+        coins: 0
       },
       showLogoutModal: false
     }
@@ -207,7 +212,8 @@ export default {
             userId: userData.userId || userData.id || this.userInfo.userId,
             avatar: userData.avatar || this.userInfo.avatar,
             bio: userData.bio || '',
-            birthday: userData.birthday || ''
+            birthday: userData.birthday || '',
+            coins: userData.coins || 0
           };
         } else {
           console.error('获取用户信息失败:', response.data);
@@ -405,6 +411,23 @@ export default {
   font-size: 28rpx;
   color: rgba(255, 255, 255, 0.8);
   font-weight: normal;
+}
+
+.user-coin {
+  display: flex;
+  align-items: center;
+  margin-top: 10rpx;
+}
+
+.coin-icon {
+  font-size: 32rpx;
+  margin-right: 10rpx;
+}
+
+.coin-count {
+  font-size: 28rpx;
+  color: #FFD700;
+  font-weight: bold;
 }
 
 .edit-icon {

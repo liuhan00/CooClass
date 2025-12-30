@@ -22,12 +22,15 @@
     <view class="tab-content">
       <!-- 小鸡档案Tab -->
       <view v-if="activeTab === 'profile'" class="profile-tab">
-        <!-- 角色基本信息 -->
-        <view class="profile-section character-info">
-          <view class="character-header">
+        <!-- 可展开的角色基本信息和小鸡信息 -->
+        <view class="profile-section character-info-expandable">
+          <view class="character-header" @tap="toggleChickenInfo">
             <view class="character-name-container">
-              <text class="character-name" @tap="editChickenName">{{ chickenInfo.nickname }}</text>
+              <text class="character-name" @tap.stop="editChickenName">{{ chickenInfo.nickname }}</text>
               <text class="character-level">Lv.{{ chickenInfo.level }}</text>
+            </view>
+            <view class="expand-icon" :class="{ 'expand-icon--rotated': showDetailedChickenInfo }">
+              <text>﹀</text>
             </view>
           </view>
           <view class="progress-container">
@@ -44,6 +47,44 @@
             <view class="stat-item">
               <text class="stat-label">体重</text>
               <text class="stat-value">{{ chickenInfo.weight }} kg</text>
+            </view>
+          </view>
+          
+          <!-- 展开的小鸡详细信息 -->
+          <view class="chicken-stats-detail" :class="{ 'chicken-stats-detail--visible': showDetailedChickenInfo }">
+            <view class="chicken-stats-grid">
+              <view class="stat-item">
+                <text class="stat-label">小鸡名称</text>
+                <text class="stat-value">{{ chickenStats.name || '无名小鸡' }}</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label">成长阶段</text>
+                <text class="stat-value">{{ chickenStats.growthStage || '未知' }}</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label">等级</text>
+                <text class="stat-value">{{ chickenStats.level || 0 }}</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label">经验值</text>
+                <text class="stat-value">{{ chickenStats.exp || 0 }}</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label">快乐度</text>
+                <text class="stat-value">{{ chickenStats.happiness || 0 }}</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label">健康度</text>
+                <text class="stat-value">{{ chickenStats.health || 0 }}</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label">饥饿度</text>
+                <text class="stat-value">{{ chickenStats.hunger || 0 }}</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label">品种</text>
+                <text class="stat-value">{{ chickenStats.breed || '未知' }}</text>
+              </view>
             </view>
           </view>
         </view>
@@ -79,39 +120,7 @@
           </view>
         </view>
         
-        <view class="profile-section chicken-stats">
-          <view class="section-header">
-            <text class="section-title">小鸡信息</text>
-          </view>
-          <view class="chicken-stats-grid">
-            <view class="stat-item">
-              <text class="stat-label">成长阶段</text>
-              <text class="stat-value">{{ chickenStats.growthStage || '未知' }}</text>
-            </view>
-            <view class="stat-item">
-              <text class="stat-label">创建天数</text>
-              <text class="stat-value">{{ chickenStats.daysSinceCreation || 0 }}天</text>
-            </view>
-            <view class="stat-item">
-              <text class="stat-label">喂食次数</text>
-              <text class="stat-value">{{ chickenStats.feedCount || 0 }}</text>
-            </view>
-            <view class="stat-item">
-              <text class="stat-label">互动次数</text>
-              <text class="stat-value">{{ chickenStats.interactionCount || 0 }}</text>
-            </view>
-            <view class="stat-item">
-              <text class="stat-label">总经验值</text>
-              <text class="stat-value">{{ chickenStats.totalExp || 0 }}</text>
-            </view>
-            <view class="stat-item">
-              <text class="stat-label">品种</text>
-              <text class="stat-value">{{ chickenStats.breed || '未知' }}</text>
-            </view>
-          </view>
-        </view>
         
-
       </view>
       
       <!-- 时光日程Tab -->
@@ -227,7 +236,8 @@ export default {
       anniversarySchedules: [], // 纪念日日程列表
       loadingSchedules: false, // 是否正在加载日程
       // 小鸡统计数据
-      chickenStats: {} // 小鸡统计信息
+      chickenStats: {}, // 小鸡统计信息
+      showDetailedChickenInfo: false // 是否显示详细小鸡信息
     }
   },
   
@@ -246,6 +256,11 @@ export default {
   },
   
   methods: {
+    // 切换小鸡详细信息显示
+    toggleChickenInfo() {
+      this.showDetailedChickenInfo = !this.showDetailedChickenInfo;
+    },
+    
     // 加载小鸡统计数据
     async loadChickenStats() {
       try {
@@ -444,7 +459,7 @@ export default {
     },
     
     // 发送聊天消息
-    sendChatMessage() {
+    async sendChatMessage() {
       if (!this.currentMessage.trim()) {
         return;
       }
@@ -460,6 +475,21 @@ export default {
       // 清空输入框
       const message = this.currentMessage;
       this.currentMessage = '';
+      
+      // 调用小鸡互动接口 - 和小鸡聊天
+      try {
+        const response = await interactWithChicken({
+          interactionType: 'talk'
+        });
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          console.log('小鸡聊天互动成功:', response.data.message);
+        } else {
+          console.error('小鸡聊天互动失败:', response);
+        }
+      } catch (error) {
+        console.error('调用小鸡聊天互动接口失败:', error);
+      }
       
       // 模拟小鸡回复
       setTimeout(() => {
@@ -708,30 +738,65 @@ export default {
   color: #000000;
 }
 
-/* 小鸡统计信息样式 */
+/* 角色基本信息可展开区域 */
+.character-info-expandable {
+  padding: 30rpx;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.character-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.expand-icon {
+  font-size: 32rpx;
+  color: #999;
+  transition: transform 0.3s ease;
+}
+
+.expand-icon--rotated {
+  transform: rotate(180deg);
+}
+
+.chicken-stats-detail {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.chicken-stats-detail--visible {
+  max-height: 1000rpx; /* 足够大的值以容纳内容 */
+}
+
 .chicken-stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20rpx;
+  gap: 30rpx;
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
 }
 
-.chicken-stats .stat-item {
+.stat-item {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 20rpx 10rpx;
 }
 
-.chicken-stats .stat-label {
+.stat-label {
   font-size: 24rpx;
-  color: #666666;
+  color: #999999;
   margin-bottom: 8rpx;
 }
 
-.chicken-stats .stat-value {
+.stat-value {
   font-size: 28rpx;
+  color: #333333;
   font-weight: bold;
-  color: #000000;
 }
 
 /* 聊天界面样式 */
@@ -751,6 +816,8 @@ export default {
   padding: 20rpx 0;
   display: flex;
   flex-direction: column;
+  max-height: 250rpx; /* 设置最大高度，为输入框留出空间 */
+  min-height: 100rpx; /* 确保最小高度 */
 }
 
 .message-item {

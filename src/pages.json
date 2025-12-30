@@ -81,6 +81,13 @@
 				"navigationBarTitleText": "专注记录",
 				"navigationStyle": "default"
 			}
+		},
+		{
+			"path": "pages/shop/index",
+			"style": {
+				"navigationBarTitleText": "咕咕商店",
+				"navigationStyle": "default"
+			}
 		}
 	],
 	"globalStyle": {

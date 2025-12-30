@@ -356,7 +356,7 @@ page {
   box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
   position: relative;
   z-index: 10;
-  margin-top: 40rpx; /* 增加上边距，进一步避免与系统状态栏重叠 */
+  margin-top: 80rpx; /* 增加上边距，进一步避免与系统状态栏重叠 */
 }
 
 .nav-back {

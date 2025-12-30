@@ -81,7 +81,7 @@
 
 <script>
 import Matter from 'matter-js'
-import api from '@/utils/request'
+import api, { getUpcomingSchedules } from '@/utils/request'
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
@@ -764,7 +764,7 @@ export default {
       ctx.arc(180, 210, 25, 0, 2 * Math.PI)
       ctx.fill()
     },
-    triggerEntrance(message) {
+    async triggerEntrance(message) {
       uni.showToast({
         title: message,
         icon: 'none',
@@ -772,12 +772,50 @@ export default {
       if (!this.hasEntered) {
         this.hasEntered = true
       }
+      
+      // 获取即将到期的日程并提醒用户
+      await this.checkUpcomingSchedules();
+      
       if (this.loginTimer) {
         clearTimeout(this.loginTimer)
       }
       this.loginTimer = setTimeout(() => {
         this.navigateToHome()
       }, 620)
+    },
+    
+    // 检查即将到期的日程
+    async checkUpcomingSchedules() {
+      try {
+        const response = await getUpcomingSchedules();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          const schedules = response.data.data || [];
+          
+          if (schedules.length > 0) {
+            // 构造提醒消息
+            const scheduleTitles = schedules.map(schedule => schedule.title).join('、');
+            const scheduleCount = schedules.length;
+            
+            // 显示提醒
+            uni.showModal({
+              title: '日程提醒',
+              content: `您有${scheduleCount}个即将到期的日程：${scheduleTitles}`,
+              showCancel: false,
+              confirmText: '我知道了',
+              success: (res) => {
+                if (res.confirm) {
+                  console.log('用户已确认日程提醒');
+                }
+              }
+            });
+          }
+        } else {
+          console.error('获取即将到期日程失败:', response);
+        }
+      } catch (error) {
+        console.error('检查即将到期日程时出错:', error);
+      }
     },
     navigateToHome() {
       uni.reLaunch({

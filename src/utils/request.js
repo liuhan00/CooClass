@@ -313,4 +313,4 @@ function feedChicken(data) {
 }
 
 // 命名导出通用请求方法
-export { request, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, feedChicken };
+export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, feedChicken };

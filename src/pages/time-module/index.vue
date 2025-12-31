@@ -126,56 +126,99 @@
       <!-- 时光日程Tab -->
       <view v-if="activeTab === 'schedule'" class="schedule-tab">
         
-        <!-- 倒数日记录区 -->
-        <view class="countdown-section">
-          <text class="section-title">倒数日</text>
-          <view v-for="schedule in countdownSchedules" :key="schedule.id" class="record-card">
-            <view class="icon-area">
-              <view class="couple-icon" :style="{ backgroundColor: schedule.themeColor }"></view>
+        <!-- 三行两列表格布局 -->
+        <view class="schedule-table">
+          
+          <!-- 倒数日行 -->
+          <view class="table-row">
+            <view class="table-cell title-cell">
+              <text class="section-title">倒数日</text>
             </view>
-            <view class="info-area">
-              <text class="main-text">{{ schedule.title }}</text>
-              <text class="date-text">{{ schedule.targetDate }}</text>
-              <view class="days-area">
-                <text class="days-number">{{ schedule.daysLeft }}</text>
-                <view class="days-unit">
-                  <text class="unit-text">DAYS</text>
+            <view class="table-cell content-cell countdown-cell">
+              <scroll-view class="scroll-container" scroll-y="true" :show-scrollbar="true">
+                <view v-for="schedule in countdownSchedules" :key="schedule.id" class="record-card">
+                  <view class="icon-area">
+                    <view class="couple-icon" :style="{ backgroundColor: schedule.themeColor }"></view>
+                  </view>
+                  <view class="info-area">
+                    <text class="main-text">{{ schedule.title }}</text>
+                    <text class="date-text">{{ schedule.targetDate }}</text>
+                    <view class="days-area">
+                      <text class="days-number">{{ schedule.daysLeft }}</text>
+                      <view class="days-unit">
+                        <text class="unit-text">DAYS</text>
+                      </view>
+                    </view>
+                  </view>
                 </view>
-              </view>
+                
+                <!-- 如果没有倒数日日程，显示提示信息 -->
+                <view v-if="countdownSchedules.length === 0" class="empty-schedule">
+                  <text class="empty-text">暂无倒数日日程</text>
+                </view>
+              </scroll-view>
             </view>
           </view>
           
-          <!-- 如果没有倒数日日程，显示提示信息 -->
-          <view v-if="countdownSchedules.length === 0" class="empty-schedule">
-            <text class="empty-text">暂无倒数日日程</text>
-          </view>
-        </view>
-        
-        <!-- 分割线 -->
-        <view class="divider"></view>
-        
-        <!-- 纪念日记录区 -->
-        <view class="memorial-section">
-          <text class="section-title">纪念日</text>
-          <view v-for="schedule in anniversarySchedules" :key="schedule.id" class="record-card">
-            <view class="icon-area">
-              <view class="smiley-icon" :style="{ backgroundColor: schedule.themeColor }"></view>
+          <!-- 纪念日行 -->
+          <view class="table-row">
+            <view class="table-cell title-cell">
+              <text class="section-title">纪念日</text>
             </view>
-            <view class="info-area">
-              <text class="main-text">{{ schedule.title }}</text>
-              <text class="date-text">{{ schedule.targetDate }}</text>
-              <view class="days-area">
-                <text class="days-number">{{ schedule.daysSince }}</text>
-                <view class="days-unit">
-                  <text class="unit-text">DAYS</text>
+            <view class="table-cell content-cell memorial-cell">
+              <scroll-view class="scroll-container" scroll-y="true" :show-scrollbar="true">
+                <view v-for="schedule in anniversarySchedules" :key="schedule.id" class="record-card">
+                  <view class="icon-area">
+                    <view class="smiley-icon" :style="{ backgroundColor: schedule.themeColor }"></view>
+                  </view>
+                  <view class="info-area">
+                    <text class="main-text">{{ schedule.title }}</text>
+                    <text class="date-text">{{ schedule.targetDate }}</text>
+                    <view class="days-area">
+                      <text class="days-number">{{ schedule.daysSince }}</text>
+                      <view class="days-unit">
+                        <text class="unit-text">DAYS</text>
+                      </view>
+                    </view>
+                  </view>
                 </view>
-              </view>
+                
+                <!-- 如果没有纪念日日程，显示提示信息 -->
+                <view v-if="anniversarySchedules.length === 0" class="empty-schedule">
+                  <text class="empty-text">暂无纪念日日程</text>
+                </view>
+              </scroll-view>
             </view>
           </view>
           
-          <!-- 如果没有纪念日日程，显示提示信息 -->
-          <view v-if="anniversarySchedules.length === 0" class="empty-schedule">
-            <text class="empty-text">暂无纪念日日程</text>
+          <!-- 每日任务行 (内容区域更大) -->
+          <view class="task-row">
+            <view class="table-cell title-cell">
+              <text class="section-title">每日任务</text>
+            </view>
+            <view class="table-cell content-cell task-cell">
+              <view class="task-content">
+                <view class="task-list">
+                  <view class="task-item" v-for="task in dailyTasks" :key="task.id" @tap="completeTask(task)">
+                    <view class="task-info">
+                      <text class="task-title">{{ task.title }}</text>
+                      <text class="task-desc">{{ task.description }}</text>
+                    </view>
+                    <view class="task-reward">
+                      <text class="reward-text">+{{ task.reward }} 谷物币</text>
+                      <button class="task-complete-btn" :class="{ 'completed': task.completed }" @tap.stop="completeTask(task)">
+                        {{ task.completed ? '已完成' : '完成' }}
+                      </button>
+                    </view>
+                  </view>
+                  
+                  <!-- 如果没有每日任务，显示提示信息 -->
+                  <view v-if="dailyTasks.length === 0" class="empty-task">
+                    <text class="empty-text">暂无每日任务</text>
+                  </view>
+                </view>
+              </view>
+            </view>
           </view>
         </view>
         
@@ -208,7 +251,7 @@
 </template>
 
 <script>
-import { getSchedules, request, getChickenStats } from '@/utils/request.js';
+import { getSchedules, request, getChickenStats, interactWithChicken } from '@/utils/request.js';
 import { getColorByNumber } from '@/utils/colorUtils.js';
 
 export default {
@@ -235,6 +278,37 @@ export default {
       countdownSchedules: [], // 倒数日日程列表
       anniversarySchedules: [], // 纪念日日程列表
       loadingSchedules: false, // 是否正在加载日程
+      // 每日任务相关数据
+      dailyTasks: [
+        {
+          id: 1,
+          title: '完成一次专注',
+          description: '专注学习25分钟以上',
+          reward: 10,
+          completed: false
+        },
+        {
+          id: 2,
+          title: '记录时光',
+          description: '添加一个倒数日或纪念日',
+          reward: 5,
+          completed: false
+        },
+        {
+          id: 3,
+          title: '喂养小鸡',
+          description: '给小鸡喂食一次',
+          reward: 8,
+          completed: true
+        },
+        {
+          id: 4,
+          title: '查看统计',
+          description: '查看今日专注时长统计',
+          reward: 3,
+          completed: false
+        }
+      ],
       // 小鸡统计数据
       chickenStats: {}, // 小鸡统计信息
       showDetailedChickenInfo: false // 是否显示详细小鸡信息
@@ -533,6 +607,37 @@ export default {
         const timestamp = new Date().getTime();
         this.chatScrollTop = timestamp; // 使用时间戳作为唯一值来触发滚动
       });
+    },
+    
+    // 完成任务
+    completeTask(task) {
+      if (task.completed) return; // 如果任务已完成，则不执行
+      
+      // 更新任务状态
+      task.completed = true;
+      
+      // 显示奖励提示
+      uni.showToast({
+        title: `任务完成！获得${task.reward}谷物币`,
+        icon: 'success',
+        duration: 2000
+      });
+      
+      // 这里可以添加增加谷物币的逻辑
+      this.updateUserCoins(task.reward);
+    },
+    
+    // 更新用户谷物币
+    updateUserCoins(reward) {
+      // 这里可以调用API更新用户谷物币
+      console.log(`用户获得${reward}谷物币`);
+      
+      // 如果有用户信息，可以更新本地存储
+      const userInfo = uni.getStorageSync('userInfo');
+      if (userInfo) {
+        userInfo.coins = (userInfo.coins || 0) + reward;
+        uni.setStorageSync('userInfo', userInfo);
+      }
     }
   }
 }
@@ -904,6 +1009,150 @@ export default {
   margin: 20rpx 0;
   display: block;
   text-align: left;
+}
+
+/* 三行两列表格布局 */
+.schedule-table {
+  display: flex;
+  flex-direction: column;
+  height: 110vh; /* 增加总高度以适应新的行高度 */
+  gap: 0;
+  padding: 20rpx 0;
+  background: linear-gradient(180deg, #fff8f0 0%, #ffe4c5 50%, #ffd7b0 100%); /* 确保背景色正确 */
+}
+
+.table-row {
+  display: flex;
+  gap: 20rpx;
+  height: 30vh; /* 增加高度以完全显示一个项目 */
+  margin-bottom: 20rpx; /* 添加底部间距 */
+  background-color: #ffffff; /* 添加背景色 */
+  border-radius: 20rpx; /* 添加圆角 */
+  padding: 10rpx; /* 添加内边距 */
+  overflow: hidden; /* 防止内容溢出 */
+}
+
+/* 每日任务行需要更大的高度 */
+.task-row {
+  display: flex;
+  gap: 20rpx;
+  height: 60vh; /* 每日任务行固定高度 */
+  margin-bottom: 20rpx; /* 添加底部间距 */
+  background-color: #ffffff; /* 添加背景色 */
+  border-radius: 20rpx; /* 添加圆角 */
+  padding: 10rpx; /* 添加内边距 */
+  overflow: hidden; /* 防止内容溢出 */
+}
+
+.table-cell {
+  padding: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20rpx; /* 保持圆角 */
+}
+
+.title-cell {
+  flex: 0 0 15%; /* 标题单元格固定宽度 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f8f8;
+  border-radius: 20rpx;
+}
+
+.content-cell {
+  flex: 1; /* 内容单元格占用剩余空间 */
+  min-width: 0; /* 确保flex项目不会溢出 */
+}
+
+.countdown-cell, .memorial-cell {
+  height: 30vh; /* 调整高度以与其他区域一致 */
+}
+
+.task-cell {
+  height: 60vh; /* 每日任务区域更大 */
+}
+
+.scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  height: 100%; /* 设置为父容器的100% */
+}
+
+.task-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.task-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.task-item:last-child {
+  border-bottom: none;
+}
+
+.task-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.task-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 8rpx;
+}
+
+.task-desc {
+  font-size: 24rpx;
+  color: #999999;
+}
+
+.task-reward {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.reward-text {
+  font-size: 24rpx;
+  color: #FF6B8B;
+  margin-bottom: 10rpx;
+}
+
+.task-complete-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 30rpx;
+  padding: 10rpx 20rpx;
+  font-size: 24rpx;
+}
+
+.task-complete-btn.completed {
+  background-color: #999999;
+}
+
+.empty-task {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .record-card {

@@ -1,18 +1,6 @@
 <template>
   <view class="shop-container">
-    <!-- 页面顶部导航 -->
-    <view class="nav-bar">
-      <view class="nav-back" @tap="goBack">
-        <text class="back-icon">‹</text>
-      </view>
-      <text class="nav-title">咕咕商店</text>
-      <view class="nav-right">
-        <view class="user-coins">
-          <text class="coin-icon">💰</text>
-          <text class="coin-count">{{ userInfo.coins || 0 }}</text>
-        </view>
-      </view>
-    </view>
+
 
     <!-- 商品分类导航 -->
     <view class="category-nav">
@@ -47,11 +35,9 @@
           <text class="goods-price">¥ {{ item.price }}</text>
           <button 
             class="buy-button" 
-            :class="{ 'buy-button--disabled': userInfo.coins < item.price }"
-            :disabled="userInfo.coins < item.price"
             @tap="buyItem(item)"
           >
-            {{ userInfo.coins < item.price ? '金币不足' : '购买' }}
+            购买
           </button>
         </view>
       </view>
@@ -95,9 +81,7 @@ import request, { getFoodsList, getUserFoodInventory, purchaseFood } from '@/uti
 export default {
   data() {
     return {
-      userInfo: {
-        coins: 0
-      },
+
       categories: [
         { id: 'all', name: '全部' },
         { id: 'normal', name: '普通' },
@@ -115,40 +99,14 @@ export default {
   },
 
   onLoad() {
-    this.loadUserInfo();
+
     this.loadGoodsList();
   },
 
   methods: {
-    // 返回上一页
-    goBack() {
-      uni.navigateBack();
-    },
 
-    // 加载用户信息
-    async loadUserInfo() {
-      try {
-        const token = uni.getStorageSync('token');
-        if (!token) {
-          uni.showToast({
-            title: '请先登录',
-            icon: 'none'
-          });
-          return;
-        }
 
-        // 这里应该调用获取用户信息的API，暂时使用模拟数据
-        const userInfo = uni.getStorageSync('userInfo');
-        if (userInfo && userInfo.coins !== undefined) {
-          this.userInfo.coins = userInfo.coins;
-        } else {
-          // 模拟获取用户金币信息
-          this.userInfo.coins = 100; // 模拟数据
-        }
-      } catch (error) {
-        console.error('加载用户信息失败:', error);
-      }
-    },
+
 
     // 加载商品列表
     async loadGoodsList() {
@@ -223,14 +181,6 @@ export default {
 
     // 购买商品
     buyItem(item) {
-      if (this.userInfo.coins < item.price) {
-        uni.showToast({
-          title: '金币不足',
-          icon: 'none'
-        });
-        return;
-      }
-
       this.selectedItem = item;
       this.showBuyModal = true;
     },
@@ -259,18 +209,11 @@ export default {
         const response = await purchaseFood(purchaseData);
         
         if (response.statusCode === 200 && response.data.code === 200) {
-          // 购买成功，更新金币
-          this.userInfo.coins = response.data.data?.remainingCoins || (this.userInfo.coins - this.selectedItem.price);
           
           uni.showToast({
             title: '购买成功',
             icon: 'success'
           });
-
-          // 更新本地存储的用户信息
-          let userInfo = uni.getStorageSync('userInfo') || {};
-          userInfo.coins = this.userInfo.coins;
-          uni.setStorageSync('userInfo', userInfo);
 
           this.closeBuyModal();
         } else {
@@ -305,56 +248,7 @@ page {
   min-height: 100vh;
 }
 
-/* 顶部导航栏 */
-.nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 88rpx;
-  padding: 0 30rpx;
-  background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10rpx);
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
-  position: relative;
-  z-index: 10;
-  margin-top: 40rpx;
-}
 
-.nav-back {
-  width: 60rpx;
-  height: 60rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.back-icon {
-  font-size: 36rpx;
-  color: #333333;
-  font-weight: bold;
-}
-
-.nav-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333333;
-}
-
-.user-coins {
-  display: flex;
-  align-items: center;
-}
-
-.coin-icon {
-  font-size: 32rpx;
-  margin-right: 8rpx;
-}
-
-.coin-count {
-  font-size: 28rpx;
-  color: #FF9800;
-  font-weight: bold;
-}
 
 /* 商品分类导航 */
 .category-nav {
@@ -394,7 +288,7 @@ page {
 .goods-list {
   flex: 1;
   padding: 20rpx 30rpx;
-  height: calc(100vh - 200rpx);
+  height: calc(100vh - 120rpx); /* 调整高度，移除顶部导航栏后 */
   box-sizing: border-box;
 }
 

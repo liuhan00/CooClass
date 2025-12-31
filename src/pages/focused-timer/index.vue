@@ -419,7 +419,7 @@ export default {
       try {
         // 调用后端开始专注API
         const response = await startFocus({
-          duration: parseInt(this.countdown / 60), // 使用分钟为单位发送给后端
+          duration: parseInt(this.countdown / 60), // 将秒转换为分钟发送给后端
           scene: this.scene, // 使用从首页传递过来的场景参数
           startTime: this.startTime
         });

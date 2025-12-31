@@ -10,7 +10,7 @@ export function createApp() {
 	app.config.errorHandler = (err, instance, info) => {
 		// 检查是否是WebSocket关闭代码错误（特别是1006错误）
 		const errorString = err && (err.message || err.errMsg || String(err));
-		if (errorString && (errorString.includes("closeSocket") || errorString.includes("WebSocket")) && errorString.includes("1006")) {
+		if (errorString && (errorString.includes("closeSocket") || errorString.includes("WebSocket")) && (errorString.includes("1006") || errorString.includes("invalid code") || errorString.includes("code must be either 1000, or between 3000 and 4999"))) {
 			console.warn("捕获到WebSocket关闭代码错误，已忽略:", errorString);
 			// 忽略此错误，不向上抛出
 			return;
@@ -23,7 +23,7 @@ export function createApp() {
 	if (typeof uni !== 'undefined' && typeof plus !== 'undefined') {
 		plus.globalEvent.addEventListener('error', (e) => {
 			const errorInfo = e.message || e.errMsg || String(e);
-			if ((errorInfo.includes("closeSocket") || errorInfo.includes("WebSocket")) && errorInfo.includes("1006")) {
+			if ((errorInfo.includes("closeSocket") || errorInfo.includes("WebSocket")) && (errorInfo.includes("1006") || errorInfo.includes("invalid code") || errorInfo.includes("code must be either 1000, or between 3000 and 4999"))) {
 				console.warn("捕获到系统级WebSocket错误，已忽略:", errorInfo);
 				return;
 			}

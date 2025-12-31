@@ -26,21 +26,21 @@
           <text class="setting-title">专注记录</text>
           <text class="setting-desc">查看您的专注历史记录</text>
         </view>
-        <text class="arrow">></text>
+        <text class="arrow">›</text>
       </view>
       <view class="setting-item" @tap="showLogoutModal = true">
         <view class="setting-content">
           <text class="setting-title">注销账号</text>
           <text class="setting-desc">会清空您所有的记录, 谨慎处理哦</text>
         </view>
-        <text class="arrow">></text>
+        <text class="arrow">›</text>
       </view>
       <view class="setting-item" @tap="handleSettingTap('退出登录')">
         <view class="setting-content">
           <text class="setting-title">退出登录</text>
           <text class="setting-desc">退出APP, 依然会保留数据</text>
         </view>
-        <text class="arrow">></text>
+        <text class="arrow">›</text>
       </view>
     </view>
 
@@ -53,7 +53,7 @@
           <text class="support-title">加群交群</text>
           <text class="support-desc">一起开始自律吧</text>
         </view>
-        <text class="arrow">></text>
+        <text class="arrow">›</text>
       </view>
       <view class="support-item" @tap="handleSupportTap('给我们评分')">
         <view class="support-icon">❤️</view>
@@ -61,7 +61,7 @@
           <text class="support-title">给我们评分</text>
           <text class="support-desc">小小的鼓励一下我们</text>
         </view>
-        <text class="arrow">></text>
+        <text class="arrow">›</text>
       </view>
       <view class="support-item" @tap="handleSupportTap('新功能许愿')">
         <view class="support-icon">✨</view>
@@ -69,7 +69,7 @@
           <text class="support-title">新功能许愿</text>
           <text class="support-desc">任何愿望都可以告诉我们, 说不定就会实现呢</text>
         </view>
-        <text class="arrow">></text>
+        <text class="arrow">›</text>
       </view>
       <view class="support-item" @tap="handleSupportTap('和朋友分享')">
         <view class="support-icon">🍎</view>
@@ -77,7 +77,7 @@
           <text class="support-title">和朋友分享</text>
           <text class="support-desc">坚持的道路上多一个人一起努力</text>
         </view>
-        <text class="arrow">></text>
+        <text class="arrow">›</text>
       </view>
     </view>
 
@@ -374,7 +374,7 @@ export default {
   display: flex;
   align-items: center;
   padding: 40rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #FFB74D 0%, #FFA726 100%); /* 更柔和的暖色调 */
   border-radius: 20rpx;
   margin-bottom: 30rpx;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
@@ -409,7 +409,7 @@ export default {
 
 .user-id {
   font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9); /* 提高透明度以增强可读性 */
   font-weight: normal;
 }
 
@@ -426,7 +426,7 @@ export default {
 
 .coin-count {
   font-size: 28rpx;
-  color: #FFD700;
+  color: #FFF8DC; /* 奶油色，更符合主题 */
   font-weight: bold;
 }
 

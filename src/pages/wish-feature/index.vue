@@ -16,7 +16,7 @@
           <text class="input-label">选择反馈类型</text>
           <view class="input-right">
             <text class="input-value">{{ feedbackTypeText }}</text>
-            <text class="arrow">></text>
+            <text class="arrow">›</text>
           </view>
         </view>
       </view>

@@ -11,7 +11,7 @@ export default {
   },
   onError(error) {
     // 检查是否是WebSocket关闭代码错误
-    if (error && typeof error === 'string' && error.includes('closeSocket') && error.includes('1006')) {
+    if (error && typeof error === 'string' && error.includes('closeSocket') && (error.includes('1006') || error.includes('invalid code') || error.includes('code must be either 1000, or between 3000 and 4999'))) {
       console.warn('捕获到WebSocket关闭代码错误，已忽略:', error)
       return
     }

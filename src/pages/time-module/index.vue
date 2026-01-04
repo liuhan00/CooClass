@@ -38,6 +38,12 @@
               <view class="progress-fill" :style="{ width: (chickenInfo.expCurrent / chickenInfo.expTotal * 100) + '%' }"></view>
             </view>
             <text class="progress-text">{{ chickenInfo.expCurrent }}/{{ chickenInfo.expTotal }}</text>
+            <!-- 升级按钮，当经验值满时显示 -->
+            <button v-if="chickenInfo.expCurrent >= chickenInfo.expTotal && chickenInfo.expTotal > 0" 
+              class="upgrade-btn" 
+              @tap="upgradeChicken">
+              升级
+            </button>
           </view>
           <view class="character-stats">
             <view class="stat-item">
@@ -251,7 +257,7 @@
 </template>
 
 <script>
-import { getSchedules, request, getChickenStats, interactWithChicken } from '@/utils/request.js';
+import { getSchedules, request, getChickenStats, interactWithChicken, levelUpChicken } from '@/utils/request.js';
 import { getColorByNumber } from '@/utils/colorUtils.js';
 
 export default {
@@ -260,13 +266,13 @@ export default {
       activeTab: 'profile', // 默认激活小鸡档案tab
       chickenInfo: {
         nickname: '小咕',
-        level: 13,
-        expCurrent: 715,
-        expTotal: 1000,
-        days: 24,
-        weight: 1.0,
-        focusHours: 120,
-        focusDays: 30
+        level: 0,
+        expCurrent: 0,
+        expTotal: 0,
+        days: 0,
+        weight: 0,
+        focusHours: 0,
+        focusDays: 0
       },
       showNameEditModal: false,
       newNickname: '',
@@ -342,6 +348,20 @@ export default {
         
         if (response.statusCode === 200 && response.data.code === 200) {
           this.chickenStats = response.data.data || {};
+          
+          // 同步数据到 chickenInfo 以确保视图显示真实数据
+          this.chickenInfo.level = this.chickenStats.level || 0;
+          // 计算当前等级的经验值（每100经验值为一个等级）
+          // 如果知道升级所需经验，使用该值作为当前等级的总经验
+          if (this.chickenStats.expToNextLevel) {
+            this.chickenInfo.expCurrent = this.chickenStats.exp % 100;
+            this.chickenInfo.expTotal = 100; // 每个等级固定100经验值
+          } else {
+            // 如果不知道升级所需经验，使用当前经验值，但限制在0-100范围内
+            this.chickenInfo.expCurrent = this.chickenStats.exp % 100;
+            this.chickenInfo.expTotal = 100; // 每个等级固定100经验值
+          }
+          this.chickenInfo.nickname = this.chickenStats.name || '小咕';
         } else {
           console.error('获取小鸡统计数据失败:', response);
         }
@@ -439,6 +459,41 @@ export default {
         });
       } finally {
         this.loadingSchedules = false;
+      }
+    },
+          
+    // 升级小鸡
+    async upgradeChicken() {
+      try {
+        uni.showLoading({
+          title: '升级中...'
+        });
+              
+        const response = await levelUpChicken();
+              
+        if (response.statusCode === 200 && response.data.code === 200) {
+          uni.showToast({
+            title: '升级成功！',
+            icon: 'success'
+          });
+                
+          // 重新加载小鸡统计数据以更新等级信息
+          await this.loadChickenStats();
+        } else {
+          uni.showToast({
+            title: response.data.message || '升级失败',
+            icon: 'none'
+          });
+          console.error('升级小鸡失败:', response);
+        }
+      } catch (error) {
+        console.error('升级小鸡请求失败:', error);
+        uni.showToast({
+          title: '网络错误',
+          icon: 'none'
+        });
+      } finally {
+        uni.hideLoading();
       }
     },
     
@@ -820,6 +875,16 @@ export default {
 .progress-text {
   font-size: 24rpx;
   color: #666666;
+}
+
+.upgrade-btn {
+  margin-left: 20rpx;
+  padding: 8rpx 20rpx;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 30rpx;
+  font-size: 24rpx;
 }
 
 .character-stats {

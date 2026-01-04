@@ -52,15 +52,13 @@ export default {
     // 返回首页
     goToHome() {
       // 返回到首页
-      uni.reLaunch({
-        url: '/pages/index/index'
-      });
+      uni.navigateBack();
     },
     
     // 重新开始计时
     restartTimer() {
       // 返回到专注计时页面并重新开始
-      uni.reLaunch({
+      uni.navigateTo({
         url: '/pages/focused-timer/index'
       });
     }

@@ -99,6 +99,7 @@ export default {
       focusId: null,
       startTime: null,
       scene: '学习', // 专注场景，默认为学习
+      tagId: null, // 标签ID，从首页传递过来
       
       // 小鸡物理引擎相关数据
       chicks: [],
@@ -121,12 +122,21 @@ export default {
     // 接收从首页传递的参数
     if (options.duration) {
       // options.duration 现在是以分钟为单位的，需要转换为秒作为倒计时初始值
-      this.countdown = parseInt(options.duration) * 60; // 将分钟转换为秒
+      this.countdown = parseInt(options.duration) * 60; // 将分钟转换为秒作为倒计时初始值
     }
     
     // 接收场景参数
     if (options.scene) {
       this.scene = decodeURIComponent(options.scene);
+    }
+    
+    // 接收标签ID参数
+    console.log('接收到的options:', options);
+    if (options.tagId && options.tagId !== 'undefined' && options.tagId !== 'null') {
+      this.tagId = parseInt(options.tagId);
+      console.log('解析后的tagId:', this.tagId);
+    } else {
+      console.log('options中没有有效的tagId字段或tagId为undefined/null');
     }
     
     if (options.from) {
@@ -418,11 +428,31 @@ export default {
       
       try {
         // 调用后端开始专注API
-        const response = await startFocus({
-          duration: parseInt(this.countdown / 60), // 将秒转换为分钟发送给后端
-          scene: this.scene, // 使用从首页传递过来的场景参数
+        const requestData = {
+          duration: parseInt(this.countdown / 60), // 以分钟为单位发送给后端
           startTime: this.startTime
-        });
+        };
+        
+        // 如果有标签ID，则使用tagId字段
+        console.log('当前tagId值:', this.tagId);
+        if (this.tagId) {
+          requestData.tagId = this.tagId; // 传递标签ID
+          console.log('已添加tagId到请求数据:', this.tagId);
+        } else {
+          console.log('tagId为空或未定义，不添加tagId字段');
+        }
+        
+        // 如果有标签ID，则包含在请求中
+        console.log('准备发送的请求数据:', requestData);
+        if (this.tagId) {
+          requestData.tagId = this.tagId;
+          console.log('添加了tagId到请求中:', this.tagId);
+        } else {
+          console.log('没有找到tagId，不会添加到请求中');
+        }
+        
+        const response = await startFocus(requestData);
+        console.log('后端返回的响应:', response);
         
         if (response.statusCode === 200 && response.data.code === 200) {
           this.focusId = response.data.data.focusId; // 假设后端返回focusId

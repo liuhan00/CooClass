@@ -197,7 +197,7 @@
 
 <script>
 import * as echarts from 'echarts';
-import { getFocusList } from '@/utils/request.js'
+import { getFocusList, getFocusStats, getTodayStats, getFocusTags } from '@/utils/request.js'
 
 export default {
   data() {
@@ -252,141 +252,79 @@ export default {
     async loadFocusData() {
       this.loading = true;
       try {
-        // 使用本地示例数据替代网络请求
-        const sampleData = [
-          {
-            focusId: '1',
-            duration: 45, // 专注时长（分钟）
-            actualDuration: 42, // 实际专注时长（分钟）
-            scene: '学习',
-            startTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24小时前
-            endTime: new Date(Date.now() - 24 * 60 * 60 * 1000 + 42 * 60 * 1000).toISOString(),
-            coinsEarned: 42, // 获得谷物币
-            expEarned: 42, // 获得经验值
-            isCompleted: true,
-            isFailed: false
-          },
-          {
-            focusId: '2',
-            duration: 60, // 专注时长（分钟）
-            actualDuration: 55, // 实际专注时长（分钟）
-            scene: '工作',
-            startTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2天前
-            endTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 55 * 60 * 1000).toISOString(),
-            coinsEarned: 55, // 获得谷物币
-            expEarned: 55, // 获得经验值
-            isCompleted: true,
-            isFailed: false
-          },
-          {
-            focusId: '3',
-            duration: 30, // 专注时长（分钟）
-            actualDuration: 25, // 实际专注时长（分钟）
-            scene: '阅读',
-            startTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3天前
-            endTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 25 * 60 * 1000).toISOString(),
-            coinsEarned: 25, // 获得谷物币
-            expEarned: 25, // 获得经验值
-            isCompleted: true,
-            isFailed: false
-          },
-          {
-            focusId: '4',
-            duration: 90, // 专注时长（分钟）
-            actualDuration: 85, // 实际专注时长（分钟）
-            scene: '学习',
-            startTime: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4天前
-            endTime: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 + 85 * 60 * 1000).toISOString(),
-            coinsEarned: 85, // 获得谷物币
-            expEarned: 85, // 获得经验值
-            isCompleted: true,
-            isFailed: false
-          },
-          {
-            focusId: '5',
-            duration: 120, // 专注时长（分钟）
-            actualDuration: 100, // 实际专注时长（分钟）
-            scene: '运动',
-            startTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5天前
-            endTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 100 * 60 * 1000).toISOString(),
-            coinsEarned: 100, // 获得谷物币
-            expEarned: 100, // 获得经验值
-            isCompleted: true,
-            isFailed: false
-          },
-          {
-            focusId: '6',
-            duration: 40, // 专注时长（分钟）
-            actualDuration: 35, // 实际专注时长（分钟）
-            scene: '工作',
-            startTime: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), // 6天前
-            endTime: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000 + 35 * 60 * 1000).toISOString(),
-            coinsEarned: 35, // 获得谷物币
-            expEarned: 35, // 获得经验值
-            isCompleted: true,
-            isFailed: false
-          },
-          {
-            focusId: '7',
-            duration: 75, // 专注时长（分钟）
-            actualDuration: 70, // 实际专注时长（分钟）
-            scene: '学习',
-            startTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7天前
-            endTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 70 * 60 * 1000).toISOString(),
-            coinsEarned: 70, // 获得谷物币
-            expEarned: 70, // 获得经验值
-            isCompleted: true,
-            isFailed: false
-          },
-          {
-            focusId: '8',
-            duration: 50, // 专注时长（分钟）
-            actualDuration: 45, // 实际专注时长（分钟）
-            scene: '阅读',
-            startTime: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8天前
-            endTime: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
-            coinsEarned: 45, // 获得谷物币
-            expEarned: 45, // 获得经验值
-            isCompleted: true,
-            isFailed: false
-          },
-          {
-            focusId: '9',
-            duration: 35, // 专注时长（分钟）
-            actualDuration: 30, // 实际专注时长（分钟）
-            scene: '工作',
-            startTime: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(), // 9天前
-            endTime: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(),
-            coinsEarned: 30, // 获得谷物币
-            expEarned: 30, // 获得经验值
-            isCompleted: true,
-            isFailed: false
-          },
-          {
-            focusId: '10',
-            duration: 60, // 专注时长（分钟）
-            actualDuration: 50, // 实际专注时长（分钟）
-            scene: '运动',
-            startTime: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10天前
-            endTime: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 50 * 60 * 1000).toISOString(),
-            coinsEarned: 50, // 获得谷物币
-            expEarned: 50, // 获得经验值
-            isCompleted: true,
-            isFailed: false
-          }
-        ];
+        // 首先加载今日统计数据
+        const todayStatsResponse = await getTodayStats();
         
-        this.focusRecords = sampleData;
-        this.processFocusData();
+        if (todayStatsResponse.statusCode === 200 && todayStatsResponse.data.code === 200) {
+          const todayStatsData = todayStatsResponse.data.data;
+          
+          // 设置今日统计数据
+          this.todayDuration = todayStatsData.todayMinutes || 0; // 今日专注分钟数
+          this.todayFailures = todayStatsData.todayFailedCount || 0; // 今日失败次数
+          // todayCount 是总次数，todayCompletedCount 是成功次数
+          // 今日成功次数 = 总次数 - 失败次数
+          const todaySuccessCount = (todayStatsData.todayCount || 0) - (todayStatsData.todayFailedCount || 0);
+          // 今日总次数显示在UI中可能需要根据具体设计决定
+          // 这里主要更新失败次数
+        }
         
-        // 等待DOM更新后绘制图表
-        this.$nextTick(() => {
-          setTimeout(() => {
-            this.drawRingChart();
-          }, 100);
-        });
+        // 同时加载专注记录列表
+        const listResponse = await getFocusList({ page: 1, size: 50 });
+        
+        // 获取标签列表以将tagId映射到标签名称
+        const tagsResponse = await getFocusTags();
+        let tagMap = {};
+        if (tagsResponse.statusCode === 200 && tagsResponse.data.code === 200) {
+          const tags = tagsResponse.data.data || [];
+          // 创建tagId到标签名称的映射
+          tagMap = tags.reduce((map, tag) => {
+            map[tag.tagId] = tag.tagName || tag.name;
+            return map;
+          }, {});
+        }
+        
+        if (listResponse.statusCode === 200 && listResponse.data.code === 200) {
+          // 转换后端返回的数据格式为页面需要的格式
+          this.focusRecords = (listResponse.data.data?.list || []).map(record => {
+            // 优先使用scene字段，如果没有则根据tagId查找标签名称，如果都没有则显示'其他'
+            let sceneName = record.scene;
+            if (!sceneName && record.tagId) {
+              sceneName = tagMap[record.tagId] || '其他';
+            } else if (!sceneName) {
+              sceneName = '其他';
+            }
+            
+            return {
+              focusId: record.focusId,
+              duration: record.duration || 0, // 设定专注时长（分钟）
+              actualDuration: record.actualDuration || 0, // 实际专注时长（分钟）
+              scene: sceneName, // 专注场景
+              startTime: record.startTime,
+              endTime: record.endTime,
+              coinsEarned: record.coinsEarned || 0, // 获得谷物币
+              expEarned: record.expEarned || 0, // 获得经验值
+              isCompleted: record.isCompleted || false
+            };
+          });
+          
+          // 计算总统计数据（累计专注时间、累计失败次数等）
+          this.calculateTotalStats();
+          
+          // 等待DOM更新后绘制图表
+          this.$nextTick(() => {
+            setTimeout(() => {
+              this.drawRingChart();
+            }, 100);
+          });
+        } else {
+          console.error('获取专注记录失败:', listResponse);
+          uni.showToast({
+            title: '获取专注记录失败',
+            icon: 'none'
+          });
+        }
       } catch (error) {
-        console.error('加载示例数据失败:', error);
+        console.error('加载数据失败:', error);
         uni.showToast({
           title: '加载数据失败',
           icon: 'none'
@@ -394,6 +332,28 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    
+    // 计算总统计数据
+    calculateTotalStats() {
+      let totalDuration = 0;
+      let totalFailures = 0;
+      
+      this.focusRecords.forEach(record => {
+        // 使用实际专注时长
+        totalDuration += record.actualDuration || record.duration || 0;
+        // 如果未完成，则为失败
+        if (!record.isCompleted) {
+          totalFailures += 1;
+        }
+      });
+      
+      // 更新总统计数据
+      this.totalDuration = totalDuration;
+      this.totalFailures = totalFailures;
+      
+      // 处理其他数据
+      this.processFocusData();
     },
     
     // 处理专注数据
@@ -404,8 +364,6 @@ export default {
       
       let todayDuration = 0;
       let totalDuration = 0;
-      let todayFailures = 0;
-      let totalFailures = 0;
       
       // 按日期和场景分组数据
       const dateGroups = {};
@@ -413,14 +371,14 @@ export default {
       
       this.focusRecords.forEach(record => {
         // 计算日期（只取日期部分）
-        const recordDate = new Date(record.startTime);
+        const recordDate = record.startTime ? new Date(record.startTime) : new Date();
         const dateStr = `${recordDate.getFullYear()}-${(recordDate.getMonth() + 1).toString().padStart(2, '0')}-${recordDate.getDate().toString().padStart(2, '0')}`;
         
         // 按日期分组
         if (!dateGroups[dateStr]) {
           dateGroups[dateStr] = { duration: 0, count: 0 };
         }
-        dateGroups[dateStr].duration += record.duration || 0;
+        dateGroups[dateStr].duration += record.actualDuration || record.duration || 0;
         dateGroups[dateStr].count += 1;
         
         // 按场景分组
@@ -428,23 +386,21 @@ export default {
         if (!sceneGroups[scene]) {
           sceneGroups[scene] = { duration: 0, count: 0 };
         }
-        sceneGroups[scene].duration += record.duration || 0;
+        sceneGroups[scene].duration += record.actualDuration || record.duration || 0;
         sceneGroups[scene].count += 1;
         
-        // 计算今日和累计数据
+        // 计算今日数据
         if (dateStr === todayStr) {
-          todayDuration += record.duration || 0;
-          todayFailures += record.isFailed ? 1 : 0; // 假设有isFailed字段
+          todayDuration += record.actualDuration || record.duration || 0;
         }
-        totalDuration += record.duration || 0;
-        totalFailures += record.isFailed ? 1 : 0;
+        totalDuration += record.actualDuration || record.duration || 0;
       });
       
-      // 更新统计数据
-      this.todayDuration = todayDuration;
-      this.totalDuration = totalDuration;
-      this.todayFailures = todayFailures;
-      this.totalFailures = totalFailures;
+      // 仅在未通过API获取统计数据时才更新这些值
+      if (this.todayDuration === 0 && this.totalDuration === 0) {
+        this.todayDuration = todayDuration;
+        this.totalDuration = totalDuration;
+      }
       
       // 生成柱状图数据（最近9天）
       this.generateBarChartData(dateGroups);

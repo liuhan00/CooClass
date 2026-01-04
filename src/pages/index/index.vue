@@ -448,11 +448,11 @@ export default {
       // 小鸡信息
       chickenInfo: {
         nickname: '小咕',
-        level: 13,
-        days: 24,
-        weight: 1.0,
-        expCurrent: 715,
-        expTotal: 1000,
+        level: 0,
+        days: 0,
+        weight: 0,
+        expCurrent: 0,
+        expTotal: 0,
         // 从API获取的小鸡统计数据
         growthStage: '未知',
         daysSinceCreation: 0,
@@ -529,6 +529,9 @@ export default {
     if (savedDuration) {
       this.focusDuration = savedDuration;
     }
+    
+    // 每次专注结束后都重新初始化小鸡
+    this.initChicks();
   },
   onHide() {
     this.stopPhysics()
@@ -890,6 +893,16 @@ export default {
           this.chickenInfo.breed = data.breed || '普通鸡';
           this.chickenInfo.name = data.name || '无名小鸡';
           this.chickenInfo.level = data.level || 0;
+          // 计算当前等级的经验值（每100经验值为一个等级）
+          // 如果知道升级所需经验，使用该值作为当前等级的总经验
+          if (data.expToNextLevel) {
+            this.chickenInfo.expCurrent = data.exp % 100;
+            this.chickenInfo.expTotal = 100; // 每个等级固定100经验值
+          } else {
+            // 如果不知道升级所需经验，使用当前经验值，但限制在0-100范围内
+            this.chickenInfo.expCurrent = data.exp % 100;
+            this.chickenInfo.expTotal = 100; // 每个等级固定100经验值
+          }
           this.chickenInfo.exp = data.exp || 0;
           this.chickenInfo.happiness = data.happiness || 0;
           this.chickenInfo.health = data.health || 0;
@@ -921,17 +934,40 @@ export default {
 
 
     handleStartFocus() {
-      // 获取选中的标签作为场景
+      // 获取选中的标签
+      console.log('当前所有标签:', this.tags);
+      console.log('当前focusScene:', this.focusScene);
       const selectedTag = this.tags.find(tag => tag.selected);
-      const scene = selectedTag ? selectedTag.name : this.focusScene;
+      console.log('选中的标签:', selectedTag);
       
-      // 跳转到专注计时页面，传递当前设置的专注时长和场景
+      // 跳转到专注计时页面，传递当前设置的专注时长和标签ID
       // 将 HH:MM 格式转换为分钟数
       const timeParts = this.focusDuration.split(':');
       const durationInMinutes = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
       
+      // 构建URL参数
+      let url = `/pages/focused-timer/index?duration=${durationInMinutes}&from=home`;
+      if (selectedTag) {
+        // 尝试获取标签ID，可能的字段名包括tagId、id或其他
+        const tagId = selectedTag.tagId || selectedTag.id || selectedTag.tagId;
+        console.log('传递的标签ID:', tagId);
+        console.log('标签对象的所有属性:', Object.keys(selectedTag));
+        if (tagId !== undefined && tagId !== null) {
+          url += `&tagId=${tagId}`;
+        }
+      } else {
+        // 如果没有选择标签，但当前focusScene对应一个标签，则查找该标签的ID
+        const sceneTag = this.tags.find(tag => tag.name === this.focusScene);
+        if (sceneTag) {
+          const tagId = sceneTag.tagId || sceneTag.id;
+          console.log('传递的场景标签ID:', tagId);
+          url += `&tagId=${tagId}`;
+        }
+      }
+      
+      console.log('跳转URL:', url);
       uni.navigateTo({
-        url: `/pages/focused-timer/index?duration=${durationInMinutes}&scene=${encodeURIComponent(scene)}&from=home`
+        url: url
       })
     },
     
@@ -956,11 +992,14 @@ export default {
         if (response.statusCode === 200 && response.data.code === 200) {
           // 将服务器返回的标签转换为页面使用的格式
           const serverTags = response.data.data || [];
+          console.log('后端返回的标签数据:', serverTags);
           this.tags = serverTags.map(tag => ({
             name: tag.tagName,
+            tagId: tag.tagId, // 包含标签ID
             colorNumber: tag.colorNumber || 1, // 使用后端返回的颜色编号
             selected: false // 默认不选中
           }));
+          console.log('转换后的标签数据:', this.tags);
           
           console.log('成功加载标签列表:', this.tags);
         } else {

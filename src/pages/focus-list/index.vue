@@ -41,7 +41,7 @@
         <view class="record-content">
           <view class="duration">
             <text class="label">时长: </text>
-            <text class="value">{{ formatDuration(record.duration) }}</text>
+            <text class="value">{{ formatDuration(record.actualDuration || record.duration) }}</text>
           </view>
           <view class="time-range">
             <text class="label">时间: </text>
@@ -127,9 +127,11 @@ export default {
         const response = await getFocusList(params);
         
         if (response.statusCode === 200 && response.data.code === 200) {
-          this.focusRecords = response.data.data || [];
+          // 根据API文档，response.data.data 应该是一个包含 list、total、page、size 的分页对象
+          const responseData = response.data.data || {};
+          this.focusRecords = responseData.list || [];
           this.currentPage = 1;
-          this.hasMore = (response.data.data && response.data.data.length === this.pageSize);
+          this.hasMore = responseData.list && responseData.list.length === this.pageSize;
         } else {
           uni.showToast({
             title: response.data.message || '获取记录失败',
@@ -166,7 +168,9 @@ export default {
         const response = await getFocusList(params);
         
         if (response.statusCode === 200 && response.data.code === 200) {
-          const newRecords = response.data.data || [];
+          // 根据API文档，response.data.data 应该是一个包含 list、total、page、size 的分页对象
+          const responseData = response.data.data || {};
+          const newRecords = responseData.list || [];
           this.focusRecords = [...this.focusRecords, ...newRecords];
           this.hasMore = newRecords.length === this.pageSize;
         } else {
@@ -204,14 +208,14 @@ export default {
       return `${startStr} - ${endStr}`;
     },
     
-    formatDuration(seconds) {
-      if (!seconds) return '0分钟';
-      const minutes = Math.floor(seconds / 60);
-      const hours = Math.floor(minutes / 60);
+    formatDuration(minutes) {
+      if (!minutes) return '0分钟';
+      const totalMinutes = Math.floor(minutes);
+      const hours = Math.floor(totalMinutes / 60);
       if (hours > 0) {
-        return `${hours}小时${minutes % 60}分钟`;
+        return `${hours}小时${totalMinutes % 60}分钟`;
       }
-      return `${minutes}分钟`;
+      return `${totalMinutes}分钟`;
     }
   }
 }

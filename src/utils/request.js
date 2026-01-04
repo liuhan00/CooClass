@@ -1,5 +1,5 @@
 // 网络请求工具
-const BASE_URL = 'http://192.168.1.171:8081'; // 后端IP地址和端口
+const BASE_URL = 'http://192.168.1.134:8081'; // 后端IP地址和端口
 
 // 通用请求方法
 function request(options) {
@@ -312,5 +312,37 @@ function feedChicken(data) {
   });
 }
 
+// 升级小鸡
+function levelUpChicken() {
+  return request({
+    url: '/api/chicken/level-up',
+    method: 'POST'
+  });
+}
+
+// 获取专注统计数据
+function getFocusStats(params = {}) {
+  // 将参数转换为查询字符串
+  const queryString = Object.keys(params)
+    .filter(key => params[key] !== undefined && params[key] !== null)
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .join('&');
+  
+  const url = queryString ? `/api/statistics/focus?${queryString}` : '/api/statistics/focus';
+  
+  return request({
+    url: url,
+    method: 'GET'
+  });
+}
+
+// 获取今日专注统计数据
+function getTodayStats() {
+  return request({
+    url: '/api/focus/today-stats',
+    method: 'GET'
+  });
+}
+
 // 命名导出通用请求方法
-export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, feedChicken };
+export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, feedChicken, levelUpChicken, getFocusStats, getTodayStats };

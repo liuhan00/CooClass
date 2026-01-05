@@ -88,6 +88,13 @@
 				"navigationBarTitleText": "咕咕商店",
 				"navigationStyle": "default"
 			}
+		},
+		{
+			"path": "pages/user-info/interaction-records",
+			"style": {
+				"navigationBarTitleText": "互动记录",
+				"navigationStyle": "default"
+			}
 		}
 	],
 	"globalStyle": {

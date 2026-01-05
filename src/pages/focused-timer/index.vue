@@ -34,7 +34,7 @@
       
       <!-- 倒计时显示 -->
       <view class="countdown-display">
-        <text class="countdown-text">{{ formatTime(countdown) }}</text>
+        <text class="countdown-text" :class="{'countdown-text--pulse': isTiming}">{{ formatTime(countdown) }}</text>
       </view>
       
       <!-- 提示文字 -->
@@ -591,9 +591,22 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #f5f5f5; /* 与其他页面一致的背景色 */
+  background: linear-gradient(180deg, #fff8f0 0%, #ffe4c5 50%, #ffd7b0 100%);
   padding: 40rpx;
   box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 /* 小鸡区域 */
@@ -612,6 +625,9 @@ export default {
   position: relative;
   margin-bottom: 60rpx;
   overflow: hidden;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 2rpx 10rpx rgba(0, 0, 0, 0.1);
 }
 
 /* 小鸡样式 - 与首页保持一致 */
@@ -931,16 +947,28 @@ export default {
 .countdown-text {
   font-size: 64rpx;
   font-weight: bold;
-  color: #333333;
+  color: #000000;
   font-family: 'Courier New', monospace;
+  text-shadow: 2rpx 2rpx 4rpx rgba(0, 0, 0, 0.1);
+}
+
+.countdown-text--pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
 /* 提示文字 */
 .hint-text {
   font-size: 28rpx;
-  color: #666666;
+  color: #000000;
   text-align: center;
   margin-bottom: 60rpx;
+  opacity: 0.8;
 }
 
 /* 控制按钮区域 */
@@ -965,20 +993,39 @@ export default {
   justify-content: center;
   font-size: 48rpx;
   box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.control-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+  z-index: 1;
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.2);
 }
 
 .btn-resume {
-  background-color: #000000;
+  background: linear-gradient(135deg, #4CAF50, #45a049) !important;
   color: #ffffff;
 }
 
 .btn-pause {
-  background-color: #000000;
+  background: linear-gradient(135deg, #FF9800, #F57C00) !important;
   color: #ffffff;
 }
 
 .btn-end {
-  background-color: #ff4757;
+  background: linear-gradient(135deg, #f44336, #d32f2f) !important;
   color: #ffffff;
 }
 

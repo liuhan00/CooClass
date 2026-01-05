@@ -218,6 +218,9 @@ export default {
       todayDate: '', // 今天的日期
       timestamp: Date.now(), // 用于强制刷新canvas
       
+      // 筛选条件
+      selectedTagId: null, // 当前选中的标签ID，null表示不过滤
+      
       // 柱状图数据 - 时长
       durationData: [],
       // 柱状图数据 - 次数
@@ -268,8 +271,26 @@ export default {
           // 这里主要更新失败次数
         }
         
+        // 构建查询参数
+        const params = {
+          page: 1,
+          size: 50 // 可以根据需要调整
+        };
+                
+        // 根据当前时间分类添加日期范围
+        const dateRange = this.getDateRangeForCurrentTimeClassification();
+        if (dateRange.startDate && dateRange.endDate) {
+          params.startDate = dateRange.startDate;
+          params.endDate = dateRange.endDate;
+        }
+                
+        // 如果选择了标签，则添加标签筛选
+        if (this.selectedTagId) {
+          params.tagId = this.selectedTagId;
+        }
+                
         // 同时加载专注记录列表
-        const listResponse = await getFocusList({ page: 1, size: 50 });
+        const listResponse = await getFocusList(params);
         
         // 获取标签列表以将tagId映射到标签名称
         const tagsResponse = await getFocusTags();
@@ -301,6 +322,7 @@ export default {
               scene: sceneName, // 专注场景
               startTime: record.startTime,
               endTime: record.endTime,
+              tagId: record.tagId, // 保留原始tagId
               coinsEarned: record.coinsEarned || 0, // 获得谷物币
               expEarned: record.expEarned || 0, // 获得经验值
               isCompleted: record.isCompleted || false
@@ -332,6 +354,69 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    
+    // 获取当前时间分类的日期范围
+    getDateRangeForCurrentTimeClassification() {
+      const currentDate = this.parseCurrentDate();
+      
+      let startDate, endDate;
+      
+      switch(this.timeClassification) {
+        case 'day':
+          // 当天的开始和结束时间
+          startDate = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
+          endDate = startDate;
+          break;
+        
+        case 'week':
+          // 获取周的开始和结束日期
+          const startOfWeek = this.getStartOfWeek(currentDate);
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+          
+          startDate = `${startOfWeek.getFullYear()}-${(startOfWeek.getMonth() + 1).toString().padStart(2, '0')}-${startOfWeek.getDate().toString().padStart(2, '0')}`;
+          endDate = `${endOfWeek.getFullYear()}-${(endOfWeek.getMonth() + 1).toString().padStart(2, '0')}-${endOfWeek.getDate().toString().padStart(2, '0')}`;
+          break;
+        
+        case 'month':
+          // 当月的开始和结束日期
+          const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+          const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+          
+          startDate = `${startOfMonth.getFullYear()}-${(startOfMonth.getMonth() + 1).toString().padStart(2, '0')}-01`;
+          endDate = `${endOfMonth.getFullYear()}-${(endOfMonth.getMonth() + 1).toString().padStart(2, '0')}-${endOfMonth.getDate().toString().padStart(2, '0')}`;
+          break;
+        
+        case 'year':
+          // 当年的开始和结束日期
+          const startOfYear = new Date(currentDate.getFullYear(), 0, 1);
+          const endOfYear = new Date(currentDate.getFullYear(), 11, 31);
+          
+          startDate = `${startOfYear.getFullYear()}-01-01`;
+          endDate = `${endOfYear.getFullYear()}-12-31`;
+          break;
+        
+        default:
+          // 默认返回空，表示不过滤日期
+          return { startDate: null, endDate: null };
+      }
+      
+      return { startDate, endDate };
+    },
+    
+    // 切换标签筛选
+    async toggleTagFilter(tagId) {
+      if (this.selectedTagId === tagId) {
+        // 如果当前已选中该标签，则取消筛选
+        this.selectedTagId = null;
+      } else {
+        // 选择新标签
+        this.selectedTagId = tagId;
+      }
+      
+      // 重新加载数据
+      await this.loadFocusData();
     },
     
     // 计算总统计数据
@@ -406,7 +491,7 @@ export default {
       this.generateBarChartData(dateGroups);
       
       // 生成环形图数据
-      this.generateRingChartData(sceneGroups);
+      this.generateRingChartDataForCurrentTimeRange();
     },
     
     // 生成柱状图数据
@@ -466,6 +551,56 @@ export default {
       
       // 计算总数
       this.ringChartTotal = Object.values(sceneGroups).reduce((sum, item) => sum + item.count, 0);
+    },
+    
+    // 根据当前时间范围生成环形图数据
+    generateRingChartDataForCurrentTimeRange() {
+      // 根据当前时间分类和日期生成场景分组数据
+      const sceneGroups = this.getSceneGroupsForCurrentTimeRange();
+      
+      // 生成环形图数据
+      const colors = ['#000000', '#2196F3', '#FF9800', '#9C27B0', '#4CAF50', '#F44336', '#9E9E9E', '#607D8B'];
+      
+      this.ringChartData = Object.keys(sceneGroups).map((scene, index) => {
+        const data = sceneGroups[scene];
+        return {
+          label: scene,
+          value: data.duration,
+          color: colors[index % colors.length],
+          count: data.count
+        };
+      });
+      
+      // 计算总数
+      this.ringChartTotal = Object.values(sceneGroups).reduce((sum, item) => sum + item.count, 0);
+    },
+    
+    // 获取当前时间范围内的场景分组数据
+    getSceneGroupsForCurrentTimeRange() {
+      const sceneGroups = {};
+      
+      // this.focusRecords 中的数据已经是根据当前时间分类筛选过的
+      // 所以直接按场景分组即可
+      this.focusRecords.forEach(record => {
+        // 按场景分组
+        const scene = record.scene || '其他';
+        if (!sceneGroups[scene]) {
+          sceneGroups[scene] = { duration: 0, count: 0 };
+        }
+        sceneGroups[scene].duration += record.actualDuration || record.duration || 0;
+        sceneGroups[scene].count += 1;
+      });
+      
+      return sceneGroups;
+    },
+    
+    // 获取周的开始日期（周一）
+    getStartOfWeek(date) {
+      const result = new Date(date);
+      const day = result.getDay();
+      const diff = result.getDate() - day + (day === 0 ? -6 : 1); // 周一为一周的开始
+      result.setDate(diff);
+      return result;
     },
     
     // 初始化日期
@@ -596,6 +731,9 @@ export default {
       }
       
       this.currentDate = this.formatDate(currentDate);
+      
+      // 重新加载数据并绘制环形图
+      this.loadFocusData();
     },
     
     // 切换日期（后一个时间段）
@@ -623,6 +761,9 @@ export default {
       }
       
       this.currentDate = this.formatDate(currentDate);
+      
+      // 重新加载数据并绘制环形图
+      this.loadFocusData();
     },
     
     // 解析当前显示的日期
@@ -720,7 +861,11 @@ export default {
     onPickerChange(e) {
       const index = e.detail.value[0];
       this.pickerValue = [index];
-      this.timeClassification = this.timeClassificationOptions[index].value;
+      
+      // 添加边界检查，防止数组越界
+      if (index >= 0 && index < this.timeClassificationOptions.length) {
+        this.timeClassification = this.timeClassificationOptions[index].value;
+      }
     },
     
     // 关闭时间分类选择弹窗
@@ -737,22 +882,17 @@ export default {
       this.currentDate = this.formatDate(today);
       this.todayDate = this.currentDate;
       
-      // 更新时间戳以强制刷新canvas
-      this.timestamp = Date.now();
-      
-      // 强制刷新环形图，解决小程序兼容性问题
-      this.forceRefreshRingChart();
+      // 重新加载数据并绘制环形图
+      this.loadFocusData();
     },
     
     // 选择时间分类
     selectTimeClassification(classification) {
       this.timeClassification = classification;
       this.updatePickerValue();
-      // 更新时间戳以强制刷新canvas
-      this.timestamp = Date.now();
       
-      // 强制刷新环形图，解决小程序兼容性问题
-      this.forceRefreshRingChart();
+      // 重新加载数据并绘制环形图
+      this.loadFocusData();
     },
     
     // 绘制环形图

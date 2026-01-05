@@ -35,7 +35,7 @@
     <scroll-view class="focus-list" scroll-y="true">
       <view class="focus-item" v-for="record in focusRecords" :key="record.focusId">
         <view class="record-header">
-          <text class="scene">{{ record.scene || '学习' }}</text>
+          <text class="scene">{{ record.scene }}</text>
           <text class="date">{{ formatDateTime(record.startTime) }}</text>
         </view>
         <view class="record-content">
@@ -72,7 +72,7 @@
 </template>
 
 <script>
-import { getFocusList } from '@/utils/request.js'
+import { getFocusList, getFocusTags } from '@/utils/request.js'
 
 export default {
   data() {
@@ -88,7 +88,10 @@ export default {
       loading: false,
       hasMore: true,
       currentPage: 1,
-      pageSize: 10
+      pageSize: 10,
+      
+      // 标签映射
+      tagMap: {}
     }
   },
   
@@ -111,11 +114,31 @@ export default {
       this.selectedSceneIndex = parseInt(e.detail.value);
     },
     
+    // 获取标签映射
+    async loadTagMap() {
+      try {
+        const response = await getFocusTags();
+        if (response.statusCode === 200 && response.data.code === 200) {
+          const tags = response.data.data || [];
+          // 创建tagId到标签名称的映射
+          this.tagMap = tags.reduce((map, tag) => {
+            map[tag.tagId] = tag.tagName || tag.name;
+            return map;
+          }, {});
+        }
+      } catch (error) {
+        console.error('获取标签列表失败:', error);
+      }
+    },
+    
     // 获取专注记录列表
     async fetchFocusList() {
       this.loading = true;
       
       try {
+        // 先加载标签映射
+        await this.loadTagMap();
+        
         const params = {
           page: 1,
           size: this.pageSize,
@@ -129,9 +152,32 @@ export default {
         if (response.statusCode === 200 && response.data.code === 200) {
           // 根据API文档，response.data.data 应该是一个包含 list、total、page、size 的分页对象
           const responseData = response.data.data || {};
-          this.focusRecords = responseData.list || [];
+          
+          // 转换后端返回的数据格式为页面需要的格式，处理tagId到场景名称的映射
+          this.focusRecords = (responseData.list || []).map(record => {
+            // 优先使用scene字段，如果没有则根据tagId查找标签名称，如果都没有则显示'其他'
+            let sceneName = record.scene;
+            if (!sceneName && record.tagId) {
+              sceneName = this.tagMap[record.tagId] || '其他';
+            } else if (!sceneName) {
+              sceneName = '其他';
+            }
+            
+            return {
+              focusId: record.focusId,
+              duration: record.duration || 0, // 设定专注时长（分钟）
+              actualDuration: record.actualDuration || 0, // 实际专注时长（分钟）
+              scene: sceneName, // 专注场景
+              startTime: record.startTime,
+              endTime: record.endTime,
+              coinsEarned: record.coinsEarned || 0, // 获得谷物币
+              expEarned: record.expEarned || 0, // 获得经验值
+              isCompleted: record.isCompleted || false
+            };
+          });
+          
           this.currentPage = 1;
-          this.hasMore = responseData.list && responseData.list.length === this.pageSize;
+          this.hasMore = this.focusRecords.length === this.pageSize;
         } else {
           uni.showToast({
             title: response.data.message || '获取记录失败',
@@ -170,7 +216,30 @@ export default {
         if (response.statusCode === 200 && response.data.code === 200) {
           // 根据API文档，response.data.data 应该是一个包含 list、total、page、size 的分页对象
           const responseData = response.data.data || {};
-          const newRecords = responseData.list || [];
+          
+          // 转换后端返回的数据格式为页面需要的格式，处理tagId到场景名称的映射
+          const newRecords = (responseData.list || []).map(record => {
+            // 优先使用scene字段，如果没有则根据tagId查找标签名称，如果都没有则显示'其他'
+            let sceneName = record.scene;
+            if (!sceneName && record.tagId) {
+              sceneName = this.tagMap[record.tagId] || '其他';
+            } else if (!sceneName) {
+              sceneName = '其他';
+            }
+            
+            return {
+              focusId: record.focusId,
+              duration: record.duration || 0, // 设定专注时长（分钟）
+              actualDuration: record.actualDuration || 0, // 实际专注时长（分钟）
+              scene: sceneName, // 专注场景
+              startTime: record.startTime,
+              endTime: record.endTime,
+              coinsEarned: record.coinsEarned || 0, // 获得谷物币
+              expEarned: record.expEarned || 0, // 获得经验值
+              isCompleted: record.isCompleted || false
+            };
+          });
+          
           this.focusRecords = [...this.focusRecords, ...newRecords];
           this.hasMore = newRecords.length === this.pageSize;
         } else {

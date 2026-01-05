@@ -18,9 +18,11 @@
       </view>
     </view>
 
-    <!-- 账号设置区块 -->
+    <!-- 记录内容区块 -->
     <view class="settings-section">
-      <text class="section-title">账号设置</text>
+      <text class="section-title">记录内容</text>
+      
+      <!-- 专注记录 -->
       <view class="setting-item" @tap="viewFocusRecords">
         <view class="setting-content">
           <text class="setting-title">专注记录</text>
@@ -28,6 +30,20 @@
         </view>
         <text class="arrow">›</text>
       </view>
+      
+      <!-- 互动记录 -->
+      <view class="setting-item" @tap="viewInteractionRecords">
+        <view class="setting-content">
+          <text class="setting-title">互动记录</text>
+          <text class="setting-desc">查看与小鸡的互动历史</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+    
+    <!-- 账号设置区块 -->
+    <view class="settings-section">
+      <text class="section-title">账号设置</text>
       <view class="setting-item" @tap="showLogoutModal = true">
         <view class="setting-content">
           <text class="setting-title">注销账号</text>
@@ -100,7 +116,7 @@
 </template>
 
 <script>
-import request from '@/utils/request.js'
+import { getUserInfo, deleteAccount, getChickenInteractionHistory } from '@/utils/request.js'
 
 export default {
   data() {
@@ -134,6 +150,14 @@ export default {
       });
     },
     
+    // 查看互动记录
+    viewInteractionRecords() {
+      // 跳转到新的互动记录页面
+      uni.navigateTo({
+        url: '/pages/user-info/interaction-records'
+      });
+    },
+    
     // 添加新的方法来处理注销弹窗
     closeLogoutModal() {
       this.showLogoutModal = false;
@@ -146,7 +170,7 @@ export default {
         });
         
         // 调用注销账号API
-        const response = await request.deleteAccount();
+        const response = await deleteAccount();
         
         if (response.statusCode === 200 && response.data.code === 200) {
           uni.showToast({
@@ -202,7 +226,7 @@ export default {
         });
         
         // 从API获取用户信息
-        const response = await request.getUserInfo();
+        const response = await getUserInfo();
         
         if (response.statusCode === 200 && response.data.code === 200) {
           // 更新用户信息

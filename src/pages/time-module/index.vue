@@ -95,6 +95,56 @@
           </view>
         </view>
         
+        <view class="profile-section feed-stats-section">
+          <view class="section-header">
+            <text class="section-title">喂养记录</text>
+          </view>
+          <view class="feed-stats-container">
+            <view class="stats-summary">
+              <view class="stat-item-large">
+                <text class="stat-label-large">总喂食次数</text>
+                <text class="stat-value-large">{{ feedStats.totalFeedCount || 0 }}</text>
+              </view>
+              <view class="stat-item-large">
+                <text class="stat-label-large">总快乐度提升</text>
+                <text class="stat-value-large">{{ feedStats.totalHappinessGained || 0 }}</text>
+              </view>
+              <view class="stat-item-large">
+                <text class="stat-label-large">总经验获得</text>
+                <text class="stat-value-large">{{ feedStats.totalExpGained || 0 }}</text>
+              </view>
+            </view>
+            
+            <view class="recent-feeds">
+              <text class="section-subtitle">近期喂养</text>
+              <view class="feed-item" v-for="(feed, index) in feedStats.recentFeeds || []" :key="index">
+                <view class="feed-icon">{{ getFoodIcon(feed.foodName) }}</view>
+                <view class="feed-info">
+                  <text class="feed-food">{{ feed.foodName }} ×{{ feed.quantity }}</text>
+                  <text class="feed-details">+{{ feed.happinessGained }}快乐 +{{ feed.expGained }}经验</text>
+                </view>
+                <view class="feed-time">{{ formatDateTime(feed.createTime) }}</view>
+              </view>
+              
+              <view v-if="!(feedStats.recentFeeds && feedStats.recentFeeds.length)" class="empty-feeds">
+                <text class="empty-text">暂无喂养记录</text>
+              </view>
+            </view>
+            
+            <view class="food-stats">
+              <text class="section-subtitle">食物统计</text>
+              <view class="food-stat-item" v-for="(count, foodName) in feedStats.foodStatistics || {}" :key="foodName">
+                <text class="food-name">{{ foodName }}</text>
+                <text class="food-count">{{ count }}</text>
+              </view>
+              
+              <view v-if="!(feedStats.foodStatistics && Object.keys(feedStats.foodStatistics).length)" class="empty-food-stats">
+                <text class="empty-text">暂无食物统计</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        
         <view class="profile-section chat-section">
           <view class="section-header">
             <text class="section-title">与小鸡聊天</text>
@@ -257,7 +307,7 @@
 </template>
 
 <script>
-import { getSchedules, request, getChickenStats, interactWithChicken, levelUpChicken } from '@/utils/request.js';
+import { getSchedules, request, getChickenStats, interactWithChicken, levelUpChicken, getChickenFeedStats } from '@/utils/request.js';
 import { getColorByNumber } from '@/utils/colorUtils.js';
 
 export default {
@@ -317,7 +367,9 @@ export default {
       ],
       // 小鸡统计数据
       chickenStats: {}, // 小鸡统计信息
-      showDetailedChickenInfo: false // 是否显示详细小鸡信息
+      showDetailedChickenInfo: false, // 是否显示详细小鸡信息
+      // 喂养记录数据
+      feedStats: {} // 喂养统计信息
     }
   },
   
@@ -333,9 +385,78 @@ export default {
     
     // 获取小鸡统计数据
     await this.loadChickenStats();
+    
+    // 获取喂养记录
+    await this.loadFeedStats();
   },
   
   methods: {
+    // 加载喂养记录
+    async loadFeedStats() {
+      try {
+        const response = await getChickenFeedStats();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          this.feedStats = response.data.data || {};
+        } else {
+          console.error('获取喂养记录失败:', response);
+          uni.showToast({
+            title: response.data.message || '获取喂养记录失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('获取喂养记录时出错:', error);
+        uni.showToast({
+          title: '网络错误',
+          icon: 'none'
+        });
+      }
+    },
+    
+    // 获取食物图标
+    getFoodIcon(foodName) {
+      const foodIcons = {
+        '谷物饼干': '🌾',
+        '蔬菜': '🥬',
+        '水果': '🍎',
+        '虫子': '🐛',
+        '小鱼': '🐟',
+        '面包': '🍞',
+        '米饭': '🍚',
+        '肉类': '🍗',
+        '奶制品': '🥛',
+        '零食': '🍿',
+        '糖果': '🍬',
+        '坚果': '🥜',
+        '沙拉': '🥗',
+        '汤': '🍲',
+        '鸡蛋': '🥚',
+        '默认': '🍗'
+      };
+      
+      return foodIcons[foodName] || foodIcons['默认'];
+    },
+    
+    // 格式化日期时间
+    formatDateTime(dateTimeStr) {
+      if (!dateTimeStr) return '';
+      
+      try {
+        const date = new Date(dateTimeStr);
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hour = date.getHours().toString().padStart(2, '0');
+        const minute = date.getMinutes().toString().padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${hour}:${minute}`;
+      } catch (error) {
+        console.error('日期格式化错误:', error);
+        return dateTimeStr;
+      }
+    },
+    
     // 切换小鸡详细信息显示
     toggleChickenInfo() {
       this.showDetailedChickenInfo = !this.showDetailedChickenInfo;
@@ -379,9 +500,10 @@ export default {
         this.loadSchedules();
       }
       
-      // 如果切换到小鸡档案tab，则刷新小鸡统计数据
+      // 如果切换到小鸡档案tab，则刷新小鸡统计数据和喂养记录
       if (tab === 'profile') {
         this.loadChickenStats();
+        this.loadFeedStats();
       }
     },
     
@@ -1327,6 +1449,127 @@ export default {
   font-size: 40rpx;
   color: #ffffff;
   font-weight: bold;
+}
+
+/* 喂养记录样式 */
+.feed-stats-section {
+  padding: 30rpx;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.stats-summary {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30rpx;
+}
+
+.stat-item-large {
+  text-align: center;
+  flex: 1;
+  padding: 0 10rpx;
+}
+
+.stat-label-large {
+  display: block;
+  font-size: 24rpx;
+  color: #999999;
+  margin-bottom: 8rpx;
+}
+
+.stat-value-large {
+  display: block;
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.section-subtitle {
+  display: block;
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333333;
+  margin: 20rpx 0 15rpx 0;
+  padding-bottom: 10rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.feed-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f8f8f8;
+}
+
+.feed-icon {
+  font-size: 40rpx;
+  margin-right: 20rpx;
+  width: 60rpx;
+  text-align: center;
+}
+
+.feed-info {
+  flex: 1;
+}
+
+.feed-food {
+  display: block;
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 5rpx;
+}
+
+.feed-details {
+  font-size: 24rpx;
+  color: #999999;
+}
+
+.feed-time {
+  font-size: 24rpx;
+  color: #999999;
+  white-space: nowrap;
+  margin-left: 20rpx;
+}
+
+.empty-feeds {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
+.food-stats {
+  margin-top: 20rpx;
+}
+
+.food-stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15rpx 0;
+  border-bottom: 1rpx solid #f8f8f8;
+}
+
+.food-name {
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.food-count {
+  font-size: 28rpx;
+  color: #666666;
+  font-weight: bold;
+}
+
+.empty-food-stats {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999999;
 }
 
 /* 名称编辑弹窗样式 */

@@ -1,5 +1,5 @@
 // 网络请求工具
-const BASE_URL = 'http://192.168.1.189:8081'; // 后端IP地址和端口
+const BASE_URL = 'http://192.168.1.131:8081'; // 后端IP地址和端口
 
 // 通用请求方法
 function request(options) {
@@ -370,8 +370,57 @@ function getChickenInteractionHistory(params = {}) {
   });
 }
 
+// 专注完成后的奖励检测
+function detectAndReward(data) {
+  return request({
+    url: '/api/focus/auto/detect-and-reward',
+    method: 'POST',
+    data: data
+  });
+}
+
+// 获取奖励详情
+function getRewardDetails(focusId) {
+  return request({
+    url: `/api/focus/reward-details/${focusId}`,
+    method: 'GET'
+  });
+}
+
+// 获取用户小球数量
+function getUserBallCount() {
+  return request({
+    url: '/api/user/ball-count',
+    method: 'GET'
+  });
+}
+
+// 获取用户今日任务
+function getTodayMissions() {
+  return request({
+    url: '/api/mission/today',
+    method: 'GET'
+  });
+}
+
+// 领取任务奖励
+function claimMissionReward(missionId) {
+  return request({
+    url: `/api/mission/claim/${missionId}`,
+    method: 'POST'
+  });
+}
+
+// 获取任务统计
+function getMissionStats() {
+  return request({
+    url: '/api/mission/stats',
+    method: 'GET'
+  });
+}
+
 // 命名导出通用请求方法
-export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, feedChicken, levelUpChicken, getFocusStats, getTodayStats, getChickenFeedStats, getChickenInteractionHistory };
+export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, feedChicken, levelUpChicken, getFocusStats, getTodayStats, getChickenFeedStats, getChickenInteractionHistory, detectAndReward, getRewardDetails, getUserBallCount, getTodayMissions, claimMissionReward, getMissionStats };
 
 // 命名导出用户信息相关API
 export { deleteAccount };

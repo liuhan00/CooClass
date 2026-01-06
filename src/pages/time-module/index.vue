@@ -254,25 +254,40 @@
             </view>
             <view class="table-cell content-cell task-cell">
               <view class="task-content">
-                <view class="task-list">
-                  <view class="task-item" v-for="task in dailyTasks" :key="task.id" @tap="completeTask(task)">
-                    <view class="task-info">
-                      <text class="task-title">{{ task.title }}</text>
-                      <text class="task-desc">{{ task.description }}</text>
+                <scroll-view class="task-scroll-container" scroll-y="true" show-scrollbar="true" enable-back-to-top="true">
+                  <!-- 未完成的任务 -->
+                  <view class="task-list">
+                    <view class="task-item" v-for="task in uncompletedTasks" :key="task.id">
+                      <view class="task-info">
+                        <text class="task-title">{{ task.title }}</text>
+                        <text class="task-desc">{{ task.description }}</text>
+                      </view>
+                      <view class="task-reward">
+                        <button class="task-complete-btn" :class="{ 'completed': task.completed, 'claimed': task.status === 'claimed' }" @tap.stop="claimTaskReward(task)">
+                          {{ task.status === 'claimed' ? '已领取' : (task.completed ? '领取奖励' : '未完成') }}
+                        </button>
+                      </view>
                     </view>
-                    <view class="task-reward">
-                      <text class="reward-text">+{{ task.reward }} 谷物币</text>
-                      <button class="task-complete-btn" :class="{ 'completed': task.completed }" @tap.stop="completeTask(task)">
-                        {{ task.completed ? '已完成' : '完成' }}
-                      </button>
+                    
+                    <!-- 已完成的任务 -->
+                    <view class="task-item completed-task" v-for="task in completedTasks" :key="task.id">
+                      <view class="task-info">
+                        <text class="task-title completed">{{ task.title }}</text>
+                        <text class="task-desc completed">{{ task.description }}</text>
+                      </view>
+                      <view class="task-reward">
+                        <button class="task-complete-btn" :class="{ 'completed': task.completed, 'claimed': task.status === 'claimed' }" @tap.stop="claimTaskReward(task)">
+                          {{ task.status === 'claimed' ? '已领取' : (task.completed ? '领取奖励' : '未完成') }}
+                        </button>
+                      </view>
+                    </view>
+                    
+                    <!-- 如果没有每日任务，显示提示信息 -->
+                    <view v-if="dailyTasks.length === 0" class="empty-task">
+                      <text class="empty-text">暂无每日任务</text>
                     </view>
                   </view>
-                  
-                  <!-- 如果没有每日任务，显示提示信息 -->
-                  <view v-if="dailyTasks.length === 0" class="empty-task">
-                    <text class="empty-text">暂无每日任务</text>
-                  </view>
-                </view>
+                </scroll-view>
               </view>
             </view>
           </view>
@@ -307,7 +322,7 @@
 </template>
 
 <script>
-import { getSchedules, request, getChickenStats, interactWithChicken, levelUpChicken, getChickenFeedStats } from '@/utils/request.js';
+import { getSchedules, request, getChickenStats, interactWithChicken, levelUpChicken, getChickenFeedStats, getTodayMissions, claimMissionReward, getMissionStats } from '@/utils/request.js';
 import { getColorByNumber } from '@/utils/colorUtils.js';
 
 export default {
@@ -335,36 +350,12 @@ export default {
       anniversarySchedules: [], // 纪念日日程列表
       loadingSchedules: false, // 是否正在加载日程
       // 每日任务相关数据
-      dailyTasks: [
-        {
-          id: 1,
-          title: '完成一次专注',
-          description: '专注学习25分钟以上',
-          reward: 10,
-          completed: false
-        },
-        {
-          id: 2,
-          title: '记录时光',
-          description: '添加一个倒数日或纪念日',
-          reward: 5,
-          completed: false
-        },
-        {
-          id: 3,
-          title: '喂养小鸡',
-          description: '给小鸡喂食一次',
-          reward: 8,
-          completed: true
-        },
-        {
-          id: 4,
-          title: '查看统计',
-          description: '查看今日专注时长统计',
-          reward: 3,
-          completed: false
-        }
-      ],
+      dailyTasks: [], // 从后端获取的每日任务列表
+      uncompletedTasks: [], // 未完成的任务
+      completedTasks: [], // 已完成的任务
+      missionStats: {}, // 任务统计信息
+      loadingMissions: false, // 任务加载状态
+
       // 小鸡统计数据
       chickenStats: {}, // 小鸡统计信息
       showDetailedChickenInfo: false, // 是否显示详细小鸡信息
@@ -388,6 +379,9 @@ export default {
     
     // 获取喂养记录
     await this.loadFeedStats();
+    
+    // 获取每日任务
+    await this.loadDailyTasks();
   },
   
   methods: {
@@ -815,6 +809,116 @@ export default {
         userInfo.coins = (userInfo.coins || 0) + reward;
         uni.setStorageSync('userInfo', userInfo);
       }
+    },
+    
+    // 加载每日任务
+    async loadDailyTasks() {
+      if (this.loadingMissions) return; // 防止重复加载
+      
+      this.loadingMissions = true;
+      
+      try {
+        const response = await getTodayMissions();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          // 处理任务数据
+          const tasks = response.data.data || [];
+          
+          // 转换后端数据格式为页面使用的格式
+          this.dailyTasks = tasks.map(task => ({
+            id: task.missionId || task.id,
+            title: task.title || task.name || '任务',
+            description: task.description || '任务描述',
+            reward: task.reward || task.coins || 0,
+            completed: task.completed || task.isCompleted || false,
+            status: task.status || 'available' // 任务状态：available, completed, claimed
+          }));
+          
+          // 分离已完成和未完成的任务
+          this.separateTasks();
+          
+          console.log('获取每日任务成功:', this.dailyTasks);
+        } else {
+          console.error('获取每日任务失败:', response.data);
+          uni.showToast({
+            title: response.data.message || '获取任务失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('加载每日任务时出错:', error);
+        uni.showToast({
+          title: '网络错误',
+          icon: 'none'
+        });
+      } finally {
+        this.loadingMissions = false;
+      }
+    },
+    
+    // 领取任务奖励
+    async claimTaskReward(task) {
+      if (task.completed !== true || task.status === 'claimed') {
+        uni.showToast({
+          title: '任务未完成或奖励已领取',
+          icon: 'none'
+        });
+        return;
+      }
+      
+      try {
+        uni.showLoading({
+          title: '领取中...'
+        });
+        
+        const response = await claimMissionReward(task.id);
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          uni.showToast({
+            title: `奖励领取成功！获得${task.reward}谷物币`,
+            icon: 'success'
+          });
+          
+          // 更新任务状态
+          task.status = 'claimed';
+          task.completed = true; // 标记为已完成
+          
+          // 更新用户金币
+          this.updateUserCoins(task.reward);
+          
+          // 重新分离任务列表
+          this.updateTaskStatus();
+        } else {
+          uni.showToast({
+            title: response.data.message || '领取失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('领取任务奖励失败:', error);
+        uni.showToast({
+          title: '网络错误',
+          icon: 'none'
+        });
+      } finally {
+        uni.hideLoading();
+      }
+    },
+    
+    // 刷新任务
+    async refreshTasks() {
+      await this.loadDailyTasks();
+    },
+    
+    // 分离已完成和未完成的任务
+    separateTasks() {
+      this.uncompletedTasks = this.dailyTasks.filter(task => !task.completed);
+      this.completedTasks = this.dailyTasks.filter(task => task.completed);
+    },
+    
+    // 更新任务状态后重新分离
+    updateTaskStatus() {
+      this.separateTasks();
     }
   }
 }
@@ -1255,11 +1359,18 @@ export default {
 }
 
 .countdown-cell, .memorial-cell {
-  height: 30vh; /* 调整高度以与其他区域一致 */
+  height: 18vh; /* 指定高度18vh */
+  padding: 0; /* 覆盖table-cell的padding */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .task-cell {
-  height: 60vh; /* 每日任务区域更大 */
+  height: 54vh; /* 调整任务区域高度，与18vh的日程区域保持协调 */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .scroll-container {
@@ -1272,10 +1383,17 @@ export default {
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.task-scroll-container {
+  flex: 1;
+  width: 100%;
+  height: 100%;
 }
 
 .task-list {
-  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -1310,6 +1428,20 @@ export default {
   color: #999999;
 }
 
+.task-title.completed {
+  color: #999999;
+  text-decoration: line-through;
+}
+
+.task-desc.completed {
+  color: #cccccc;
+  text-decoration: line-through;
+}
+
+.completed-task {
+  opacity: 0.7;
+}
+
 .task-reward {
   display: flex;
   flex-direction: column;
@@ -1333,6 +1465,11 @@ export default {
 
 .task-complete-btn.completed {
   background-color: #999999;
+}
+
+.task-complete-btn.claimed {
+  background-color: #FFD700; /* 金色表示已领取 */
+  color: #333333;
 }
 
 .empty-task {

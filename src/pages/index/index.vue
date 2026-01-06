@@ -420,7 +420,7 @@
 
 <script>
 import Matter from 'matter-js'
-import { getFocusTags, createFocusTag, updateFocusTag, deleteFocusTag, interactWithChicken, getChickenStats, getFoodsList, getUserFoodInventory, feedChicken } from '@/utils/request.js'
+import { getFocusTags, createFocusTag, updateFocusTag, deleteFocusTag, interactWithChicken, getChickenStats, getFoodsList, getUserFoodInventory, feedChicken, getUserBallCount } from '@/utils/request.js'
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
@@ -445,6 +445,7 @@ export default {
       brandName: '咕咕学时',
       focusScene: '阅读',
       focusDuration: '75:00',
+      ballCount: 13, // 默认小球数量
       // 小鸡信息
       chickenInfo: {
         nickname: '小咕',
@@ -514,8 +515,9 @@ export default {
   onLoad() {
     this.cacheDeviceRatio()
   },
-  onReady() {
-    this.measurePlayground(() => {
+  async onReady() {
+    this.measurePlayground(async () => {
+      await this.loadBallCount();
       this.initChicks()
       this.startPhysics()
     })
@@ -600,6 +602,26 @@ export default {
         }
       })
     },
+    
+    // 加载用户小球数量
+    async loadBallCount() {
+      try {
+        const response = await getUserBallCount();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          this.ballCount = response.data.data?.ballCount || 13; // 默认为13个小球
+          console.log('获取用户小球数量成功:', this.ballCount);
+        } else {
+          console.error('获取用户小球数量失败:', response.data.message);
+          // 失败时使用默认数量
+          this.ballCount = 13;
+        }
+      } catch (error) {
+        console.error('获取用户小球数量时出错:', error);
+        // 出错时使用默认数量
+        this.ballCount = 13;
+      }
+    },
     initChicks() {
       this.destroyMatterWorld()
       this.engine = Engine.create()
@@ -626,8 +648,16 @@ export default {
       const startY = this.playgroundHeight * 0.8  // 从屏幕80%高度开始，更靠近底部
       const visibleHeight = this.playgroundHeight * 0.15  // 在15%的垂直范围内分布，让小鸡更靠近底部
       // 重置映射表
+      const ballCount = this.ballCount || CHICK_EXPRESSIONS.length; // 使用从后端获取的球数量
       this.chickBodyMap = {}
-      return CHICK_EXPRESSIONS.map((expression, index) => {
+            
+      // 创建小鸡数组，使用后端返回的数量
+      const expressionsToUse = [];
+      for (let i = 0; i < ballCount; i++) {
+        expressionsToUse.push(CHICK_EXPRESSIONS[i % CHICK_EXPRESSIONS.length]);
+      }
+            
+      return expressionsToUse.map((expression, index) => {
         const body = Bodies.circle(
           Math.random() * (this.playgroundWidth - CHICK_RADIUS * 4) + CHICK_RADIUS * 2,
           Math.random() * (visibleHeight - CHICK_RADIUS * 4) + startY,
@@ -1475,7 +1505,7 @@ export default {
         // 调用喂食API
         const feedData = {
           userId: userId,
-          chickenId: this.chickenInfo.chickenId || 1,
+          chickenId: this.chickenInfo.chickenId || 2, // 使用用户的小鸡ID，如果获取不到默认为2
           foodId: snack.foodId,
           quantity: 1
         };

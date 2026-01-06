@@ -61,11 +61,83 @@
       </view>
     </view>
   </view>
+  
+  <!-- 奖励弹窗 -->
+  <view v-if="showRewardPopup" class="reward-popup" @tap="closeRewardPopup">
+    <view class="reward-popup-content" @tap.stop="() => {}">
+      <view class="reward-popup-header">
+        <text class="reward-popup-title">专注完成！</text>
+      </view>
+      
+      <view class="reward-popup-body">
+        <text class="reward-popup-message">恭喜您完成专注！</text>
+        
+        <!-- 基本奖励 -->
+        <view v-if="rewardData.baseReward && (rewardData.baseReward.coins || rewardData.baseReward.exp || rewardData.baseReward.ballCount)" class="basic-rewards">
+          <view v-if="rewardData.baseReward.coins" class="reward-item">
+            <text class="reward-icon">🌾</text>
+            <text class="reward-text">+{{ rewardData.baseReward.coins }} 谷物币</text>
+          </view>
+          
+          <view v-if="rewardData.baseReward.exp" class="reward-item">
+            <text class="reward-icon">⭐</text>
+            <text class="reward-text">+{{ rewardData.baseReward.exp }} 经验值</text>
+          </view>
+          
+          <view v-if="rewardData.baseReward.ballCount" class="reward-item">
+            <text class="reward-icon">🔵</text>
+            <text class="reward-text">+{{ rewardData.baseReward.ballCount }} 小球数量</text>
+          </view>
+        </view>
+        
+        <!-- 额外奖励 -->
+        <view v-if="rewardData.extraRewardResult && (rewardData.extraRewardResult.extraCoinsEarned > 0 || (rewardData.extraRewardResult.rewardItems && rewardData.extraRewardResult.rewardItems.name && rewardData.extraRewardResult.rewardItems.name !== '无'))" class="extra-rewards">
+          <text class="extra-rewards-title">额外奖励：</text>
+          <view v-if="rewardData.extraRewardResult.extraCoinsEarned > 0" class="reward-item">
+            <text class="reward-icon">🌾</text>
+            <text class="reward-text">额外谷物币 +{{ rewardData.extraRewardResult.extraCoinsEarned }}</text>
+          </view>
+          <view v-if="rewardData.extraRewardResult.rewardItems && rewardData.extraRewardResult.rewardItems.name && rewardData.extraRewardResult.rewardItems.name !== '无'" class="reward-item">
+            <text class="reward-icon">🍗</text>
+            <text class="reward-text">{{ rewardData.extraRewardResult.rewardItems.name }} +{{ rewardData.extraRewardResult.rewardItems.quantity || 1 }}</text>
+          </view>
+        </view>
+        
+        <!-- 兼容旧格式的奖励显示 -->
+        <view v-if="!rewardData.baseReward && !rewardData.extraRewardResult && (rewardData.coinsEarned || rewardData.expEarned)" class="basic-rewards">
+          <view v-if="rewardData.coinsEarned" class="reward-item">
+            <text class="reward-icon">🌾</text>
+            <text class="reward-text">+{{ rewardData.coinsEarned }} 谷物币</text>
+          </view>
+          
+          <view v-if="rewardData.expEarned" class="reward-item">
+            <text class="reward-icon">⭐</text>
+            <text class="reward-text">+{{ rewardData.expEarned }} 经验值</text>
+          </view>
+        </view>
+        
+        <!-- 兼容旧格式的额外奖励显示 -->
+        <view v-if="!rewardData.baseReward && !rewardData.extraRewardResult && rewardData.extraRewards && rewardData.extraRewards.length > 0" class="extra-rewards">
+          <text class="extra-rewards-title">额外奖励：</text>
+          <view v-for="(reward, index) in rewardData.extraRewards" :key="index" class="reward-item">
+            <text v-if="reward.type === 'coins'" class="reward-icon">🌾</text>
+            <text v-else-if="reward.type === 'food'" class="reward-icon">🍗</text>
+            <text v-else class="reward-icon">🎁</text>
+            <text class="reward-text">{{ reward.name || reward.type }} +{{ reward.quantity || 1 }}</text>
+          </view>
+        </view>
+      </view>
+      
+      <view class="reward-popup-footer">
+        <button class="reward-popup-btn" @tap="closeRewardPopup">确定</button>
+      </view>
+    </view>
+  </view>
 </template>
 
 <script>
 import Matter from 'matter-js'
-import { startFocus, endFocus } from '@/utils/request.js'
+import { startFocus, endFocus, detectAndReward, getRewardDetails } from '@/utils/request.js'
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
@@ -114,7 +186,11 @@ export default {
       engine: null,
       dragConstraint: null,
       chickBodies: [],
-      frameId: null
+      frameId: null,
+      
+      // 奖励相关数据
+      showRewardPopup: false, // 是否显示奖励弹窗
+      rewardData: {} // 奖励数据
     }
   },
   
@@ -414,6 +490,87 @@ export default {
       return Math.min(Math.max(value, min), max)
     },
     
+    // 显示奖励弹窗
+    showRewardModal(rewardData) {
+      // 如果没有奖励数据，直接返回首页
+      if (!rewardData) {
+        setTimeout(() => {
+          uni.navigateBack();
+        }, 1500);
+        return;
+      }
+      
+      // 设置奖励数据并显示弹窗
+      this.rewardData = rewardData;
+      this.showRewardPopup = true;
+    },
+    
+    // 关闭奖励弹窗
+    closeRewardPopup() {
+      this.showRewardPopup = false;
+      // 关闭弹窗后返回首页
+      uni.navigateBack();
+    },
+    
+    // 格式化奖励内容
+    formatRewardContent(rewardData) {
+      let content = '恭喜您完成专注！\n\n';
+      
+      // 解析基础奖励
+      if (rewardData.baseReward) {
+        const baseReward = rewardData.baseReward;
+        if (baseReward.coins) {
+          content += `谷物币: +${baseReward.coins}\n`;
+        }
+        if (baseReward.exp) {
+          content += `经验值: +${baseReward.exp}\n`;
+        }
+        if (baseReward.ballCount) {
+          content += `小球数量: +${baseReward.ballCount}\n`;
+        }
+      }
+      
+      // 解析额外奖励
+      if (rewardData.extraRewardResult) {
+        const extraReward = rewardData.extraRewardResult;
+        content += '\n额外奖励:\n';
+        
+        if (extraReward.extraCoinsEarned && extraReward.extraCoinsEarned > 0) {
+          content += `额外谷物币: +${extraReward.extraCoinsEarned}\n`;
+        }
+        
+        if (extraReward.rewardItems && extraReward.rewardItems.name && extraReward.rewardItems.name !== '无') {
+          content += `${extraReward.rewardItems.name}: +${extraReward.rewardItems.quantity || 1}\n`;
+        }
+      }
+      
+      // 如果没有从baseReward和extraRewardResult获取到信息，尝试旧格式
+      if (!rewardData.baseReward && !rewardData.extraRewardResult) {
+        if (rewardData.coinsEarned && rewardData.coinsEarned > 0) {
+          content += `谷物币: +${rewardData.coinsEarned}\n`;
+        }
+        
+        if (rewardData.expEarned && rewardData.expEarned > 0) {
+          content += `经验值: +${rewardData.expEarned}\n`;
+        }
+        
+        if (rewardData.extraRewards && rewardData.extraRewards.length > 0) {
+          content += '\n额外奖励:\n';
+          rewardData.extraRewards.forEach(reward => {
+            if (reward.type === 'coins') {
+              content += `谷物币: +${reward.amount}\n`;
+            } else if (reward.type === 'food') {
+              content += `${reward.name}: +${reward.quantity || 1}\n`;
+            } else {
+              content += `${reward.name || reward.type}: +${reward.quantity || 1}\n`;
+            }
+          });
+        }
+      }
+      
+      return content;
+    },
+    
     // 格式化时间显示 (MM:SS)
     formatTime(seconds) {
       const mins = Math.floor(seconds / 60);
@@ -554,6 +711,44 @@ export default {
             title: '专注完成！',
             icon: 'success'
           });
+          
+          // 计算实际专注时长
+          const endTime = Date.now();
+          const actualDuration = Math.round((endTime - this.startTime) / 60000); // 转换为分钟
+          
+          // 调用奖励检测API
+          const userInfo = uni.getStorageSync('userInfo') || {};
+          const userId = userInfo.userId || userInfo.id || 0; // 从本地存储获取用户ID
+          const duration = parseInt(this.countdown / 60); // 设定的专注时长（分钟）
+          
+          // 调用奖励检测API
+          const rewardResponse = await detectAndReward({
+            userId: userId,
+            duration: duration,
+            actualDuration: actualDuration,
+            focusId: this.focusId
+          });
+          
+          if (rewardResponse.statusCode === 200 && rewardResponse.data.code === 200) {
+            console.log('奖励检测成功', rewardResponse.data);
+            
+            // 直接使用奖励检测API的返回数据
+            // 显示奖励弹窗
+            this.showRewardModal(rewardResponse.data.data);
+          } else {
+            console.error('奖励检测失败:', rewardResponse.data);
+            
+            // 即使检测失败，也尝试获取奖励详情
+            const detailsResponse = await getRewardDetails(this.focusId);
+            if (detailsResponse.statusCode === 200 && detailsResponse.data.code === 200) {
+              console.log('获取奖励详情成功', detailsResponse.data);
+              
+              // 显示奖励弹窗
+              this.showRewardModal(detailsResponse.data.data);
+            } else {
+              console.error('获取奖励详情失败:', detailsResponse.data);
+            }
+          }
         } else {
           console.error('结束专注失败:', response.data);
           uni.showToast({
@@ -568,11 +763,6 @@ export default {
           icon: 'none'
         });
       }
-      
-      // 返回首页
-      setTimeout(() => {
-        uni.navigateBack();
-      }, 1500);
     }
   },
   
@@ -1077,5 +1267,94 @@ export default {
   border-left: 48rpx solid #ffffff;
   border-bottom: 24rpx solid transparent;
   margin-left: 8rpx;
+}
+
+/* 奖励弹窗 */
+.reward-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.reward-popup-content {
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  width: 80%;
+  max-width: 600rpx;
+  box-shadow: 0 20rpx 40rpx rgba(0, 0, 0, 0.3);
+}
+
+.reward-popup-header {
+  text-align: center;
+  margin-bottom: 30rpx;
+}
+
+.reward-popup-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.reward-popup-body {
+  margin-bottom: 40rpx;
+}
+
+.reward-popup-message {
+  display: block;
+  text-align: center;
+  font-size: 32rpx;
+  color: #666;
+  margin-bottom: 30rpx;
+}
+
+.basic-rewards {
+  margin-bottom: 30rpx;
+}
+
+.extra-rewards-title {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 20rpx;
+  font-weight: bold;
+}
+
+.reward-item {
+  display: flex;
+  align-items: center;
+  padding: 15rpx 0;
+}
+
+.reward-icon {
+  font-size: 40rpx;
+  margin-right: 20rpx;
+}
+
+.reward-text {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.reward-popup-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.reward-popup-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: #ffffff;
+  border: none;
+  border-radius: 50rpx;
+  padding: 20rpx 60rpx;
+  font-size: 32rpx;
+  box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.2);
 }
 </style>

@@ -6,10 +6,6 @@
         <text class="back-icon">‹</text>
       </view>
       <text class="nav-title">编辑资料</text>
-      <view class="nav-right">
-        <text class="view-records-btn" @tap="viewFocusRecords">记录</text>
-        <text class="save-btn" @tap="saveProfile">保存</text>
-      </view>
     </view>
 
     <!-- 用户资料编辑区域 -->
@@ -52,11 +48,17 @@
         </picker>
       </view>
     </scroll-view>
+    
+    <!-- 底部保存按钮 -->
+    <view class="bottom-save-container">
+      <button class="bottom-save-btn" @tap="saveProfile">保存</button>
+    </view>
+    
   </view>
 </template>
 
 <script>
-import request, { BASE_URL } from '@/utils/request.js'
+import request, { BASE_URL, uploadAvatar, getUserInfo } from '@/utils/request.js'
 
 export default {
   data() {
@@ -102,7 +104,7 @@ export default {
         });
         
         // 从API获取用户信息
-        const response = await request.getUserInfo();
+        const response = await getUserInfo();
         
         if (response.statusCode === 200 && response.data.code === 200) {
           // 更新用户信息
@@ -216,32 +218,28 @@ export default {
               title: '上传中...'
             });
             
-            // 上传头像到服务器（这里使用模拟上传，实际项目中需要替换为真实上传接口）
-            // 由于uni.uploadFile需要服务器支持，我们暂时先更新本地数据
-            this.userInfo.avatar = tempFilePath;
+            // 使用导入的uploadAvatar函数上传头像
+            const uploadResult = await uploadAvatar(tempFilePath);
             
-            // 如果有头像上传API，可以在这里调用
-            /* 
-            const uploadResult = await uni.uploadFile({
-              url: BASE_URL + '/api/upload/avatar',
-              filePath: tempFilePath,
-              name: 'avatar',
-              header: {
-                'Authorization': 'Bearer ' + uni.getStorageSync('token') // 如果需要认证
-              }
-            });
-            
-            if(uploadResult.statusCode === 200) {
-              const response = JSON.parse(uploadResult.data);
-              if(response.success) {
-                this.userInfo.avatar = response.data.url;
-              }
+            if(uploadResult.statusCode === 200 && uploadResult.data.code === 200) {
+              // 上传成功，更新头像URL
+              this.userInfo.avatar = uploadResult.data.data.url;
+              
+              uni.showToast({
+                title: '上传成功',
+                icon: 'success'
+              });
+            } else {
+              console.error('上传头像失败:', uploadResult.data);
+              uni.showToast({
+                title: uploadResult.data.message || '上传失败',
+                icon: 'none'
+              });
             }
-            */
           } catch (error) {
             console.error('上传头像失败:', error);
             uni.showToast({
-              title: '上传失败',
+              title: error.message || '上传失败',
               icon: 'none'
             });
           } finally {
@@ -504,5 +502,28 @@ page {
 .picker-arrow {
   color: #cccccc;
   font-size: 32rpx;
+}
+
+/* 底部保存按钮容器 */
+.bottom-save-container {
+  padding: 30rpx;
+  margin: 30rpx;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+/* 底部保存按钮 */
+.bottom-save-btn {
+  width: 100%;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 32rpx;
+  font-weight: bold;
+  border: none;
+  border-radius: 15rpx;
+  box-sizing: border-box;
 }
 </style>

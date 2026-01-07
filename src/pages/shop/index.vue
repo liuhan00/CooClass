@@ -76,25 +76,28 @@
 </template>
 
 <script>
-import request, { getFoodsList, getUserFoodInventory, purchaseFood } from '@/utils/request.js'
+import request, { getFoodsList, getUserFoodInventory, purchaseFood, getMedicineList, getUserMedicineInventory, purchaseMedicine } from '@/utils/request.js'
 
 export default {
   data() {
     return {
-
+  
       categories: [
         { id: 'all', name: '全部' },
-        { id: 'normal', name: '普通' },
-        { id: 'special', name: '特殊' },
-        { id: 'limited', name: '限量' }
+        { id: 'food', name: '食物' },
+        { id: 'medicine', name: '药品' },
+        { id: 'special', name: '特殊物品' }
       ],
       activeCategory: 0,
+      allFoodsList: [],
+      allMedicinesList: [],
       allGoodsList: [],
       currentGoodsList: [],
       loadingMore: false,
       noMoreData: false,
       showBuyModal: false,
-      selectedItem: null
+      selectedItem: null,
+      selectedItemType: 'food' // 区分是食物还是药品
     }
   },
 
@@ -115,25 +118,45 @@ export default {
           title: '加载中...'
         });
 
-        const response = await getFoodsList();
-        if (response.statusCode === 200 && response.data.code === 200) {
-          // 添加稀有度文本
-          const goodsWithRarityText = response.data.data.map(item => {
+        // 并行加载食物和药品列表
+        const [foodsResponse, medicinesResponse] = await Promise.all([
+          getFoodsList(),
+          getMedicineList()
+        ]);
+
+        // 处理食物列表
+        if (foodsResponse.statusCode === 200 && foodsResponse.data.code === 200) {
+          this.allFoodsList = foodsResponse.data.data.map(item => {
             return {
               ...item,
+              type: 'food',
+              typeName: '食物',
               rarityText: this.getRarityText(item.rarity),
-              category: item.category || 'normal'
+              category: item.category || 'food'
             };
           });
-
-          this.allGoodsList = goodsWithRarityText;
-          this.filterGoodsList();
         } else {
-          uni.showToast({
-            title: '获取商品列表失败',
-            icon: 'none'
-          });
+          console.error('获取食物列表失败:', foodsResponse);
         }
+
+        // 处理药品列表
+        if (medicinesResponse.statusCode === 200 && medicinesResponse.data.code === 200) {
+          this.allMedicinesList = medicinesResponse.data.data.map(item => {
+            return {
+              ...item,
+              type: 'medicine',
+              typeName: '药品',
+              rarityText: this.getRarityText(item.rarity),
+              category: item.category || 'medicine'
+            };
+          });
+        } else {
+          console.error('获取药品列表失败:', medicinesResponse);
+        }
+
+        // 合并所有商品列表
+        this.allGoodsList = [...this.allFoodsList, ...this.allMedicinesList];
+        this.filterGoodsList();
       } catch (error) {
         console.error('加载商品列表失败:', error);
         uni.showToast({
@@ -163,8 +186,18 @@ export default {
         // 全部商品
         this.currentGoodsList = [...this.allGoodsList];
       } else {
-        const category = this.categories[this.activeCategory].id;
-        this.currentGoodsList = this.allGoodsList.filter(item => item.category === category);
+        const categoryId = this.categories[this.activeCategory].id;
+        
+        if (categoryId === 'food') {
+          // 只显示食物
+          this.currentGoodsList = [...this.allFoodsList];
+        } else if (categoryId === 'medicine') {
+          // 只显示药品
+          this.currentGoodsList = [...this.allMedicinesList];
+        } else {
+          // 显示特定类别商品
+          this.currentGoodsList = this.allGoodsList.filter(item => item.category === categoryId);
+        }
       }
     },
 
@@ -182,6 +215,7 @@ export default {
     // 购买商品
     buyItem(item) {
       this.selectedItem = item;
+      this.selectedItemType = item.type || 'food'; // 默认为食物
       this.showBuyModal = true;
     },
 
@@ -200,13 +234,23 @@ export default {
           title: '购买中...'
         });
 
-        // 调用购买API
-        const purchaseData = {
-          foodId: this.selectedItem.foodId,
-          quantity: 1 // 默认购买1个
-        };
-        
-        const response = await purchaseFood(purchaseData);
+        // 根据商品类型调用不同的购买API
+        let response;
+        if (this.selectedItemType === 'medicine') {
+          // 药品购买
+          const purchaseData = {
+            medicineId: this.selectedItem.medicineId || this.selectedItem.id,
+            quantity: 1 // 默认购买1个
+          };
+          response = await purchaseMedicine(purchaseData);
+        } else {
+          // 食物购买
+          const purchaseData = {
+            foodId: this.selectedItem.foodId || this.selectedItem.id,
+            quantity: 1 // 默认购买1个
+          };
+          response = await purchaseFood(purchaseData);
+        }
         
         if (response.statusCode === 200 && response.data.code === 200) {
           

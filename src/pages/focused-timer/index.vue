@@ -91,15 +91,20 @@
         </view>
         
         <!-- 额外奖励 -->
-        <view v-if="rewardData.extraRewardResult && (rewardData.extraRewardResult.extraCoinsEarned > 0 || (rewardData.extraRewardResult.rewardItems && rewardData.extraRewardResult.rewardItems.name && rewardData.extraRewardResult.rewardItems.name !== '无'))" class="extra-rewards">
+        <view v-if="hasExtraRewards(rewardData)" class="extra-rewards">
           <text class="extra-rewards-title">额外奖励：</text>
-          <view v-if="rewardData.extraRewardResult.extraCoinsEarned > 0" class="reward-item">
+          <view v-if="rewardData.extraRewardResult && rewardData.extraRewardResult.extraCoinsEarned > 0" class="reward-item">
             <text class="reward-icon">🌾</text>
             <text class="reward-text">额外谷物币 +{{ rewardData.extraRewardResult.extraCoinsEarned }}</text>
           </view>
-          <view v-if="rewardData.extraRewardResult.rewardItems && rewardData.extraRewardResult.rewardItems.name && rewardData.extraRewardResult.rewardItems.name !== '无'" class="reward-item">
+          <view v-if="rewardData.extraRewardResult && rewardData.extraRewardResult.rewardItems && rewardData.extraRewardResult.rewardItems.name && rewardData.extraRewardResult.rewardItems.name !== '无'" class="reward-item">
             <text class="reward-icon">🍗</text>
             <text class="reward-text">{{ rewardData.extraRewardResult.rewardItems.name }} +{{ rewardData.extraRewardResult.rewardItems.quantity || 1 }}</text>
+          </view>
+          <!-- 兼容其他可能的额外奖励格式 -->
+          <view v-if="rewardData.extraRewardResult && rewardData.extraRewardResult.items && rewardData.extraRewardResult.items.length > 0" class="reward-item" v-for="(item, index) in rewardData.extraRewardResult.items" :key="'extra-' + index">
+            <text class="reward-icon">🎁</text>
+            <text class="reward-text">{{ item.name || item.type }} +{{ item.quantity || item.amount || 1 }}</text>
           </view>
         </view>
         
@@ -510,6 +515,25 @@ export default {
       this.showRewardPopup = false;
       // 关闭弹窗后返回首页
       uni.navigateBack();
+    },
+    
+    // 判断是否有额外奖励
+    hasExtraRewards(rewardData) {
+      if (!rewardData) return false;
+      
+      // 检查新格式的额外奖励
+      if (rewardData.extraRewardResult) {
+        if (rewardData.extraRewardResult.extraCoinsEarned > 0) return true;
+        if (rewardData.extraRewardResult.rewardItems && 
+            rewardData.extraRewardResult.rewardItems.name && 
+            rewardData.extraRewardResult.rewardItems.name !== '无') return true;
+        if (rewardData.extraRewardResult.items && rewardData.extraRewardResult.items.length > 0) return true;
+      }
+      
+      // 检查旧格式的额外奖励
+      if (rewardData.extraRewards && rewardData.extraRewards.length > 0) return true;
+      
+      return false;
     },
     
     // 格式化奖励内容

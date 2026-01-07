@@ -532,8 +532,8 @@ export default {
       this.focusDuration = savedDuration;
     }
     
-    // 每次专注结束后都重新初始化小鸡
-    this.initChicks();
+    // 检查小球数量是否变化，如果变化则重新初始化小鸡
+    this.checkAndReinitChicks();
   },
   onHide() {
     this.stopPhysics()
@@ -622,6 +622,21 @@ export default {
         this.ballCount = 13;
       }
     },
+    
+    // 检查是否需要重新初始化小鸡
+    async checkAndReinitChicks() {
+      // 重新加载小球数量
+      await this.loadBallCount();
+      
+      // 如果小鸡数量发生变化，或者没有初始化过小鸡，则重新初始化
+      if (!this.chickBodies || this.chickBodies.length !== this.ballCount) {
+        this.initChicks();
+      } else {
+        // 如果数量没有变化，只是重启物理引擎
+        this.startPhysics();
+      }
+    },
+    
     initChicks() {
       this.destroyMatterWorld()
       this.engine = Engine.create()
@@ -785,9 +800,10 @@ export default {
       const point = this.getTouchPoint(touch)
       if (!point) return
       
-      // 查找正在拖拽的小鸡
-      const chickInfo = this.chickBodyMap[this.activeChickId];
-      const bodyIndex = Object.keys(this.chickBodyMap).indexOf(this.activeChickId);
+      // 通过activeChickId获取索引
+      const chickIdMatch = this.activeChickId.match(/chick-(\d+)/);
+      if (!chickIdMatch) return;
+      const bodyIndex = parseInt(chickIdMatch[1]);
       const body = this.chickBodies[bodyIndex];
       if (!body) return
       
@@ -815,17 +831,19 @@ export default {
     async handlePlaygroundTouchEnd(event) {
       console.log('结束拖拽主页小鸡');
       if (this.activeChickId) {
-        // 查找正在拖拽的小鸡
-        const chickInfo = this.chickBodyMap[this.activeChickId];
-        const bodyIndex = Object.keys(this.chickBodyMap).indexOf(this.activeChickId);
-        const body = this.chickBodies[bodyIndex];
-        if (body) {
-          body.isDragging = false
-          if (this.dragSnapshot && this.dragSnapshot.velocity) {
-            Body.setVelocity(body, {
-              x: this.dragSnapshot.velocity.x * 30,
-              y: this.dragSnapshot.velocity.y * 30,
-            })
+        // 通过activeChickId获取索引
+        const chickIdMatch = this.activeChickId.match(/chick-(\d+)/);
+        if (chickIdMatch) {
+          const bodyIndex = parseInt(chickIdMatch[1]);
+          const body = this.chickBodies[bodyIndex];
+          if (body) {
+            body.isDragging = false
+            if (this.dragSnapshot && this.dragSnapshot.velocity) {
+              Body.setVelocity(body, {
+                x: this.dragSnapshot.velocity.x * 30,
+                y: this.dragSnapshot.velocity.y * 30,
+              })
+            }
           }
         }
       }

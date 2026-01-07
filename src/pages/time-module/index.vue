@@ -34,16 +34,18 @@
             </view>
           </view>
           <view class="progress-container">
-            <view class="progress-bar">
-              <view class="progress-fill" :style="{ width: (chickenInfo.expCurrent / chickenInfo.expTotal * 100) + '%' }"></view>
+            <view class="progress-bar-container">
+              <view class="progress-bar">
+                <view class="progress-fill" :style="{ width: (chickenInfo.expCurrent / chickenInfo.expTotal * 100) + '%' }"></view>
+              </view>
+              <text class="progress-text">{{ chickenInfo.expCurrent }}/{{ chickenInfo.expTotal }}</text>
+              <!-- 升级按钮，当经验值满时显示 -->
+              <button v-if="chickenInfo.expCurrent >= chickenInfo.expTotal && chickenInfo.expTotal > 0" 
+                class="upgrade-btn" 
+                @tap="upgradeChicken">
+                升级
+              </button>
             </view>
-            <text class="progress-text">{{ chickenInfo.expCurrent }}/{{ chickenInfo.expTotal }}</text>
-            <!-- 升级按钮，当经验值满时显示 -->
-            <button v-if="chickenInfo.expCurrent >= chickenInfo.expTotal && chickenInfo.expTotal > 0" 
-              class="upgrade-btn" 
-              @tap="upgradeChicken">
-              升级
-            </button>
           </view>
           <view class="character-stats">
             <view class="stat-item">
@@ -191,18 +193,20 @@
               <text class="section-title">倒数日</text>
             </view>
             <view class="table-cell content-cell countdown-cell">
-              <scroll-view class="scroll-container" scroll-y="true" :show-scrollbar="true">
-                <view v-for="schedule in countdownSchedules" :key="schedule.id" class="record-card">
-                  <view class="icon-area">
-                    <view class="couple-icon" :style="{ backgroundColor: schedule.themeColor }"></view>
-                  </view>
-                  <view class="info-area">
-                    <text class="main-text">{{ schedule.title }}</text>
-                    <text class="date-text">{{ schedule.targetDate }}</text>
-                    <view class="days-area">
-                      <text class="days-number">{{ schedule.daysLeft }}</text>
-                      <view class="days-unit">
-                        <text class="unit-text">DAYS</text>
+              <scroll-view class="scroll-container" scroll-y="true" show-scrollbar="true" enable-back-to-top="true" scroll-with-animation="true">
+                <view class="schedule-list">
+                  <view v-for="schedule in countdownSchedules" :key="schedule.id" class="record-card countdown-record">
+                    <view class="icon-area">
+                      <view class="couple-icon" :style="{ backgroundColor: schedule.themeColor }"></view>
+                    </view>
+                    <view class="info-area">
+                      <text class="main-text">{{ schedule.title }}</text>
+                      <text class="date-text">{{ schedule.targetDate }}</text>
+                      <view class="days-area">
+                        <text class="days-number">{{ schedule.daysLeft }}</text>
+                        <view class="days-unit">
+                          <text class="unit-text">DAYS</text>
+                        </view>
                       </view>
                     </view>
                   </view>
@@ -222,18 +226,20 @@
               <text class="section-title">纪念日</text>
             </view>
             <view class="table-cell content-cell memorial-cell">
-              <scroll-view class="scroll-container" scroll-y="true" :show-scrollbar="true">
-                <view v-for="schedule in anniversarySchedules" :key="schedule.id" class="record-card">
-                  <view class="icon-area">
-                    <view class="smiley-icon" :style="{ backgroundColor: schedule.themeColor }"></view>
-                  </view>
-                  <view class="info-area">
-                    <text class="main-text">{{ schedule.title }}</text>
-                    <text class="date-text">{{ schedule.targetDate }}</text>
-                    <view class="days-area">
-                      <text class="days-number">{{ schedule.daysSince }}</text>
-                      <view class="days-unit">
-                        <text class="unit-text">DAYS</text>
+              <scroll-view class="scroll-container" scroll-y="true" show-scrollbar="true" enable-back-to-top="true" scroll-with-animation="true">
+                <view class="schedule-list">
+                  <view v-for="schedule in anniversarySchedules" :key="schedule.id" class="record-card memorial-record">
+                    <view class="icon-area">
+                      <view class="smiley-icon" :style="{ backgroundColor: schedule.themeColor }"></view>
+                    </view>
+                    <view class="info-area">
+                      <text class="main-text">{{ schedule.title }}</text>
+                      <text class="date-text">{{ schedule.targetDate }}</text>
+                      <view class="days-area">
+                        <text class="days-number">{{ schedule.daysSince }}</text>
+                        <view class="days-unit">
+                          <text class="unit-text">DAYS</text>
+                        </view>
                       </view>
                     </view>
                   </view>
@@ -355,6 +361,7 @@ export default {
       completedTasks: [], // 已完成的任务
       missionStats: {}, // 任务统计信息
       loadingMissions: false, // 任务加载状态
+      scrollTop: 0, // 滚动位置
 
       // 小鸡统计数据
       chickenStats: {}, // 小鸡统计信息
@@ -469,14 +476,29 @@ export default {
           // 计算当前等级的经验值（每100经验值为一个等级）
           // 如果知道升级所需经验，使用该值作为当前等级的总经验
           if (this.chickenStats.expToNextLevel) {
-            this.chickenInfo.expCurrent = this.chickenStats.exp % 100;
-            this.chickenInfo.expTotal = 100; // 每个等级固定100经验值
+            // 保持原始经验值，用于升级判断
+            const rawExp = this.chickenStats.exp;
+            // 当经验值达到或超过升级所需经验时，显示为满值（100）
+            this.chickenInfo.expCurrent = Math.min(rawExp % this.chickenStats.expToNextLevel, 100);
+            // 如果当前经验值正好等于升级所需经验，则显示为100%
+            if (rawExp >= this.chickenStats.expToNextLevel && rawExp % this.chickenStats.expToNextLevel === 0) {
+              this.chickenInfo.expCurrent = this.chickenStats.expToNextLevel;
+            }
+            this.chickenInfo.expTotal = this.chickenStats.expToNextLevel;
           } else {
-            // 如果不知道升级所需经验，使用当前经验值，但限制在0-100范围内
-            this.chickenInfo.expCurrent = this.chickenStats.exp % 100;
+            // 如果不知道升级所需经验，默认每100经验值升一级
+            const rawExp = this.chickenStats.exp;
+            // 当经验值达到或超过100时，显示为满值（100）
+            this.chickenInfo.expCurrent = Math.min(rawExp % 100, 100);
+            // 如果当前经验值正好是100的倍数且大于0，则显示为100%
+            if (rawExp >= 100 && rawExp % 100 === 0) {
+              this.chickenInfo.expCurrent = 100;
+            }
             this.chickenInfo.expTotal = 100; // 每个等级固定100经验值
           }
           this.chickenInfo.nickname = this.chickenStats.name || '小咕';
+          this.chickenInfo.days = this.chickenStats.age || 0;
+          this.chickenInfo.weight = this.chickenStats.weight || 0;
         } else {
           console.error('获取小鸡统计数据失败:', response);
         }
@@ -1084,12 +1106,18 @@ export default {
   margin-bottom: 20rpx;
 }
 
+.progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
 .progress-bar {
   height: 20rpx;
   background-color: #f0f0f0;
   border-radius: 10rpx;
   overflow: hidden;
-  margin-bottom: 10rpx;
+  flex: 1;
 }
 
 .progress-fill {
@@ -1358,9 +1386,11 @@ export default {
   min-width: 0; /* 确保flex项目不会溢出 */
 }
 
-.countdown-cell, .memorial-cell {
+.table-cell.countdown-cell, .table-cell.memorial-cell {
   height: 18vh; /* 指定高度18vh */
-  padding: 0; /* 覆盖table-cell的padding */
+  padding: 0 !important; /* 强制覆盖table-cell的padding */
+  box-shadow: none !important; /* 移除阴影 */
+  margin: 0 !important; /* 移除可能的margin */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1377,6 +1407,13 @@ export default {
   flex: 1;
   overflow-y: auto;
   height: 100%; /* 设置为父容器的100% */
+}
+
+.table-cell.countdown-cell .scroll-container, .table-cell.memorial-cell .scroll-container {
+  padding: 0;
+  margin: 0;
+  height: 100% !important;
+  min-height: 100%;
 }
 
 .task-content {
@@ -1486,6 +1523,22 @@ export default {
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
   padding: 24rpx;
   margin-bottom: 20rpx;
+}
+
+.countdown-record, .memorial-record {
+  min-height: auto;
+}
+
+.countdown-record:last-child, .memorial-record:last-child {
+  margin-bottom: 0;
+}
+
+.schedule-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding-bottom: 20rpx; /* 为最后一个元素提供底部间距 */
 }
 
 .icon-area {

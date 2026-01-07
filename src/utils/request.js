@@ -280,10 +280,26 @@ function interactWithChicken(data) {
   });
 }
 
+// 获取药物列表
+function getMedicineList() {
+  return request({
+    url: '/api/medicine/list',
+    method: 'GET'
+  });
+}
+
 // 获取食物列表
 function getFoodsList() {
   return request({
     url: '/api/foods/',
+    method: 'GET'
+  });
+}
+
+// 获取用户药物库存
+function getUserMedicineInventory() {
+  return request({
+    url: '/api/medicine/inventory',
     method: 'GET'
   });
 }
@@ -293,6 +309,15 @@ function getUserFoodInventory() {
   return request({
     url: '/api/foods/inventory',
     method: 'GET'
+  });
+}
+
+// 购买药物
+function purchaseMedicine(data) {
+  return request({
+    url: '/api/medicine/purchase',
+    method: 'POST',
+    data: data
   });
 }
 
@@ -420,7 +445,85 @@ function getMissionStats() {
 }
 
 // 命名导出通用请求方法
-export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, feedChicken, levelUpChicken, getFocusStats, getTodayStats, getChickenFeedStats, getChickenInteractionHistory, detectAndReward, getRewardDetails, getUserBallCount, getTodayMissions, claimMissionReward, getMissionStats };
+export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, getMedicineList, getUserMedicineInventory, purchaseMedicine, feedChicken, levelUpChicken, getFocusStats, getTodayStats, getChickenFeedStats, getChickenInteractionHistory, detectAndReward, getRewardDetails, getUserBallCount, getTodayMissions, claimMissionReward, getMissionStats };
 
 // 命名导出用户信息相关API
 export { deleteAccount };
+
+// 上传头像
+function uploadAvatar(filePath) {
+  return new Promise((resolve, reject) => {
+    const token = uni.getStorageSync('token');
+    
+    // 检查token是否存在且有效
+    if (!token) {
+      console.error('上传头像失败: 用户未登录，缺少token');
+      const error = new Error('用户未登录，请先登录');
+      error.statusCode = 401;
+      reject(error);
+      return;
+    }
+    
+    console.log('上传头像信息:', {
+      url: BASE_URL + '/api/upload/avatar',
+      token: token ? '存在' : '不存在',
+      tokenLength: token.length
+    });
+    
+    uni.uploadFile({
+      url: BASE_URL + '/api/upload/avatar',
+      filePath: filePath,
+      name: 'file',
+      header: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'multipart/form-data'
+      },
+      success: (res) => {
+        console.log('上传头像响应:', {
+          statusCode: res.statusCode,
+          data: res.data
+        });
+        
+        // 检查是否是401或403错误
+        if (res.statusCode === 401 || res.statusCode === 403) {
+          console.error('认证失败，可能token无效:', res.data);
+          uni.removeStorageSync('token'); // 清除无效token
+          const error = new Error('登录已过期，请重新登录');
+          error.statusCode = res.statusCode;
+          reject(error);
+          return;
+        }
+        
+        try {
+          const response = JSON.parse(res.data);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve({
+              statusCode: res.statusCode,
+              data: response
+            });
+          } else {
+            const error = new Error(`HTTP Error: ${res.statusCode}`);
+            error.statusCode = res.statusCode;
+            error.data = response;
+            reject(error);
+          }
+        } catch (e) {
+          console.error('解析上传响应失败:', e);
+          const error = new Error('响应数据格式错误');
+          error.originalResponse = res.data;
+          reject(error);
+        }
+      },
+      fail: (err) => {
+        console.error('上传头像失败:', err);
+        const error = new Error('头像上传失败');
+        error.networkError = true;
+        error.originalError = err;
+        reject(error);
+      }
+    });
+  });
+}
+
+// 命名导出上传头像API
+export { uploadAvatar };

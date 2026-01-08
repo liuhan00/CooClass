@@ -1,5 +1,5 @@
 // 网络请求工具
-const BASE_URL = 'http://192.168.1.131:8081'; // 后端IP地址和端口
+const BASE_URL = 'http://192.168.1.124:8081'; // 后端IP地址和端口
 
 // 通用请求方法
 function request(options) {
@@ -339,6 +339,23 @@ function feedChicken(data) {
   });
 }
 
+// 使用药品
+function useMedicine(data) {
+  return request({
+    url: '/api/medicine/use',
+    method: 'POST',
+    data: data
+  });
+}
+
+// 获取药品使用历史
+function getMedicineHistory() {
+  return request({
+    url: '/api/medicine/history',
+    method: 'GET'
+  });
+}
+
 // 升级小鸡
 function levelUpChicken() {
   return request({
@@ -445,7 +462,7 @@ function getMissionStats() {
 }
 
 // 命名导出通用请求方法
-export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, getMedicineList, getUserMedicineInventory, purchaseMedicine, feedChicken, levelUpChicken, getFocusStats, getTodayStats, getChickenFeedStats, getChickenInteractionHistory, detectAndReward, getRewardDetails, getUserBallCount, getTodayMissions, claimMissionReward, getMissionStats };
+export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, getMedicineList, getUserMedicineInventory, purchaseMedicine, feedChicken, useMedicine, levelUpChicken, getFocusStats, getTodayStats, getChickenFeedStats, getMedicineHistory, getChickenInteractionHistory, detectAndReward, getRewardDetails, getUserBallCount, getTodayMissions, claimMissionReward, getMissionStats };
 
 // 命名导出用户信息相关API
 export { deleteAccount };

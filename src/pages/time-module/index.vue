@@ -98,10 +98,13 @@
         </view>
         
         <view class="profile-section feed-stats-section">
-          <view class="section-header">
+          <view class="section-header" @tap="toggleFeedDetails">
             <text class="section-title">喂养记录</text>
+            <view class="expand-icon" :class="{ 'expand-icon--rotated': showFeedDetails }">
+              <text>﹀</text>
+            </view>
           </view>
-          <view class="feed-stats-container">
+          <view class="feed-stats-container" :class="{ 'feed-stats-container--visible': showFeedDetails }">
             <view class="stats-summary">
               <view class="stat-item-large">
                 <text class="stat-label-large">总喂食次数</text>
@@ -142,6 +145,56 @@
               
               <view v-if="!(feedStats.foodStatistics && Object.keys(feedStats.foodStatistics).length)" class="empty-food-stats">
                 <text class="empty-text">暂无食物统计</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 治疗记录部分 -->
+        <view class="profile-section medicine-history-section">
+          <view class="section-header" @tap="toggleMedicineDetails">
+            <text class="section-title">治疗记录</text>
+            <view class="expand-icon" :class="{ 'expand-icon--rotated': showMedicineDetails }">
+              <text>﹀</text>
+            </view>
+          </view>
+          <view class="medicine-history-container" :class="{ 'medicine-history-container--visible': showMedicineDetails }">
+            <view class="stats-summary">
+              <view class="stat-item-large">
+                <text class="stat-label-large">总治疗次数</text>
+                <text class="stat-value-large">{{ medicineStats.totalMedicineCount || 0 }}</text>
+              </view>
+              <view class="stat-item-large">
+                <text class="stat-label-large">总效果提升</text>
+                <text class="stat-value-large">{{ medicineStats.totalEffectGained || 0 }}</text>
+              </view>
+            </view>
+            
+            <view class="recent-medicines">
+              <text class="section-subtitle">近期治疗</text>
+              <view class="medicine-item" v-for="(medicine, index) in medicineStats.recentMedicines || []" :key="index">
+                <view class="medicine-icon">💊</view>
+                <view class="medicine-info">
+                  <text class="medicine-name">{{ medicine.medicineName }} ×{{ medicine.quantity || 1 }}</text>
+                  <text class="medicine-details">+{{ medicine.effectValue }}{{ getEffectTypeName(medicine.effectType) }}</text>
+                </view>
+                <view class="medicine-time">{{ formatDateTime(medicine.createTime) }}</view>
+              </view>
+              
+              <view v-if="!(medicineStats.recentMedicines && medicineStats.recentMedicines.length)" class="empty-medicines">
+                <text class="empty-text">暂无治疗记录</text>
+              </view>
+            </view>
+            
+            <view class="medicine-stats">
+              <text class="section-subtitle">药品统计</text>
+              <view class="medicine-stat-item" v-for="(count, medicineName) in medicineStats.medicineStatistics || {}" :key="medicineName">
+                <text class="medicine-name">{{ medicineName }}</text>
+                <text class="medicine-count">{{ count }}</text>
+              </view>
+              
+              <view v-if="!(medicineStats.medicineStatistics && Object.keys(medicineStats.medicineStatistics).length)" class="empty-medicine-stats">
+                <text class="empty-text">暂无药品统计</text>
               </view>
             </view>
           </view>
@@ -328,7 +381,7 @@
 </template>
 
 <script>
-import { getSchedules, request, getChickenStats, interactWithChicken, levelUpChicken, getChickenFeedStats, getTodayMissions, claimMissionReward, getMissionStats } from '@/utils/request.js';
+import { getSchedules, request, getChickenStats, interactWithChicken, levelUpChicken, getChickenFeedStats, getMedicineList, getMedicineHistory, getTodayMissions, claimMissionReward, getMissionStats } from '@/utils/request.js';
 import { getColorByNumber } from '@/utils/colorUtils.js';
 
 export default {
@@ -367,7 +420,11 @@ export default {
       chickenStats: {}, // 小鸡统计信息
       showDetailedChickenInfo: false, // 是否显示详细小鸡信息
       // 喂养记录数据
-      feedStats: {} // 喂养统计信息
+      feedStats: {}, // 喂养统计信息
+      showFeedDetails: false, // 是否显示喂养详情
+      // 治疗记录数据
+      medicineStats: {}, // 治疗统计信息
+      showMedicineDetails: false // 是否显示治疗详情
     }
   },
   
@@ -389,6 +446,9 @@ export default {
     
     // 获取每日任务
     await this.loadDailyTasks();
+    
+    // 获取治疗记录
+    await this.loadMedicineHistory();
   },
   
   methods: {
@@ -413,6 +473,91 @@ export default {
           icon: 'none'
         });
       }
+    },
+    
+    // 加载治疗记录
+    async loadMedicineHistory() {
+      try {
+        const response = await getMedicineHistory();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          const rawMedicineHistory = response.data.data || [];
+          
+          // 获取药品列表，用于获取药品名称
+          const medicineListResponse = await getMedicineList();
+          let allMedicines = [];
+          if (medicineListResponse.statusCode === 200 && medicineListResponse.data.code === 200) {
+            const medicineData = medicineListResponse.data.data;
+            allMedicines = Array.isArray(medicineData.list) ? medicineData.list : (Array.isArray(medicineData) ? medicineData : []);
+          }
+          
+          // 处理治疗记录数据
+          const processedHistory = rawMedicineHistory.map(record => {
+            // 根据 medicineId 查找药品名称
+            const medicine = allMedicines.find(med => med.medicineId === record.medicineId);
+            return {
+              ...record,
+              medicineName: medicine ? medicine.name : '未知药品',
+              createTime: record.useTime || record.createTime // 使用 useTime 作为显示时间
+            };
+          });
+          
+          // 计算统计数据
+          const totalMedicineCount = processedHistory.length;
+          const totalEffectGained = processedHistory.reduce((sum, record) => sum + (record.effectValue || 0), 0);
+          
+          // 按药品名称统计
+          const medicineStatistics = {};
+          processedHistory.forEach(record => {
+            const name = record.medicineName;
+            medicineStatistics[name] = (medicineStatistics[name] || 0) + 1;
+          });
+          
+          this.medicineStats = {
+            totalMedicineCount,
+            totalEffectGained,
+            recentMedicines: processedHistory,
+            medicineStatistics
+          };
+        } else {
+          console.error('获取治疗记录失败:', response);
+          uni.showToast({
+            title: response.data.message || '获取治疗记录失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('获取治疗记录时出错:', error);
+        uni.showToast({
+          title: '网络错误',
+          icon: 'none'
+        });
+      }
+    },
+    
+    // 获取效果类型的中文名称
+    getEffectTypeName(effectType) {
+      const effectTypes = {
+        'energy': '能量',
+        'health': '健康',
+        'happiness': '快乐',
+        'exp': '经验',
+        'strength': '体力',
+        'focus': '专注',
+        'growth': '成长'
+      };
+      
+      return effectTypes[effectType] || effectType;
+    },
+    
+    // 切换喂养详情显示
+    toggleFeedDetails() {
+      this.showFeedDetails = !this.showFeedDetails;
+    },
+    
+    // 切换治疗详情显示
+    toggleMedicineDetails() {
+      this.showMedicineDetails = !this.showMedicineDetails;
     },
     
     // 获取食物图标
@@ -1015,6 +1160,9 @@ export default {
 }
 
 .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 20rpx;
 }
 
@@ -1648,6 +1796,26 @@ export default {
   border-radius: 20rpx;
   margin-bottom: 30rpx;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.feed-stats-container {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.feed-stats-container--visible {
+  max-height: 2000rpx; /* 足够大的值以容纳内容 */
+}
+
+.medicine-history-container {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.medicine-history-container--visible {
+  max-height: 2000rpx; /* 足够大的值以容纳内容 */
 }
 
 .stats-summary {

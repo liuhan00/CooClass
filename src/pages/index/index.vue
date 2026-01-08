@@ -51,11 +51,11 @@
           <text class="feed-icon">🍗</text>
           <text class="feed-text">喂食</text>
         </view>
-        
-        <!-- 商店按钮 -->
-        <view class="feed-button" @tap="openShop">
-          <text class="feed-icon">🛒</text>
-          <text class="feed-text">商店</text>
+            
+        <!-- 治疗按钮 -->
+        <view class="feed-button" @tap="treatChicken">
+          <text class="feed-icon">💊</text>
+          <text class="feed-text">治疗</text>
         </view>
       </view>
       <text class="hero-name">{{ brandName }}</text>
@@ -64,12 +64,15 @@
 
     <view class="content-panel">
       <view class="top-bar">
-        <view class="brand-badge">
-          <text class="brand-title">{{ brandName }}</text>
-        </view>
-        <view class="top-icons">
-          <text class="icon-button">···</text>
-          <text class="icon-button">◎</text>
+        <view class="left-section">
+          <!-- 商店按钮 -->
+          <view class="store-button-in-header" @tap="openShop">
+            <text class="store-icon">🛒</text>
+            <text class="store-text">商店</text>
+          </view>
+          <view class="brand-badge">
+            <text class="brand-title">{{ brandName }}</text>
+          </view>
         </view>
       </view>
 
@@ -111,7 +114,7 @@
             <text class="plus-icon">+</text>
             <text class="new-tag-text">新标签</text>
           </view>
-          <view class="tags-container" :class="{ 'tags-container--editing': isEditingTags }">
+          <scroll-view class="tags-container" :class="{ 'tags-container--editing': isEditingTags }" scroll-y="true">
             <text class="edit-mode-hint" v-if="isEditingTags">点击标签修改名称</text>
             <view 
               v-for="(tag, index) in tags" 
@@ -135,7 +138,7 @@
                 <text class="checkmark-large">✓</text>
               </view>
             </view>
-          </view>
+          </scroll-view>
         </view>
       </view>
     </view>
@@ -414,13 +417,52 @@
     </view>
   </scroll-view>
 
+  <!-- 药品选择弹窗 -->
+  <view class="medicine-modal" v-if="showMedicineModal">
+    <view class="medicine-overlay" @tap="closeMedicineModal"></view>
+    <view class="medicine-container">
+      <!-- 顶部导航栏 -->
+      <view class="medicine-header">
+        <view class="back-button" @tap="closeMedicineModal">
+          <text class="back-icon">‹</text>
+        </view>
+        <text class="medicine-title">选择药品</text>
+      </view>
+      
+      <!-- 药品选项列表 -->
+      <scroll-view class="medicines-list" scroll-y="true">
+        <view 
+          v-for="(medicine, index) in availableMedicines" 
+          :key="medicine.medicineId || index"
+          class="medicine-item"
+        >
+          <view class="medicine-icon">
+            <image :src="medicine.icon" class="medicine-icon-image" :show-menu-by-longpress="false" mode="aspectFill" @error="onMedicineImageError" @load="onMedicineImageLoad"></image>
+            <text class="medicine-effect">{{ medicine.effectType }}+{{ medicine.effectValue }}</text>
+          </view>
+          <view class="medicine-info">
+            <text class="medicine-name">{{ medicine.name }}</text>
+            <text class="medicine-quantity">拥有 {{ medicine.quantity }}</text>
+          </view>
+          <button 
+            class="use-medicine-button" 
+            :class="{ 'use-medicine-button--disabled': medicine.quantity <= 0 }"
+            :disabled="medicine.quantity <= 0"
+            @tap="useMedicine(medicine)"
+          >
+            使用
+          </button>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
 
   </view>
 </template>
 
 <script>
 import Matter from 'matter-js'
-import { getFocusTags, createFocusTag, updateFocusTag, deleteFocusTag, interactWithChicken, getChickenStats, getFoodsList, getUserFoodInventory, feedChicken, getUserBallCount } from '@/utils/request.js'
+import { getFocusTags, createFocusTag, updateFocusTag, deleteFocusTag, interactWithChicken, getChickenStats, getFoodsList, getUserFoodInventory, feedChicken, getUserBallCount, getUserMedicineInventory, getMedicineList, useMedicine } from '@/utils/request.js'
 
 const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter
 
@@ -494,6 +536,8 @@ export default {
       deletingTagIndex: -1, // 正在删除的标签索引
       showCreateTagDialog: false, // 是否显示创建标签对话框
       newTagName: '', // 新标签名称
+      showMedicineModal: false, // 是否显示药品选择弹窗
+      availableMedicines: [], // 可用的药品列表
       COLOR_MAP: { // 颜色映射表
         "1": "#FFCCCC",
         "2": "#CCFFCC", 
@@ -1148,48 +1192,74 @@ export default {
         return
       }
       
-      try {
-        uni.showLoading({
-          title: '创建中...'
-        });
-        
-        // 创建默认标签名称
-        const newTagName = '新标签';
-        const response = await createFocusTag({ tagName: newTagName }); // 只传递tagName，颜色由后端分配
-        
-        if (response.statusCode === 200 && response.data.code === 200) {
-          // 重新加载标签列表以获取新创建的标签
-          await this.loadTagsFromServer();
-          
-          // 选中新创建的标签
-          const newTag = this.tags.find(tag => tag.name === newTagName);
-          if (newTag) {
-            // 取消之前选中的标签
-            this.tags.forEach(tag => tag.selected = false);
-            // 选中新标签
-            newTag.selected = true;
+      // 弹出输入框让用户输入标签名称
+      uni.showModal({
+        title: '创建新标签',
+        placeholderText: '请输入标签名称',
+        editable: true,
+        success: async (res) => {
+          if (res.confirm) {
+            const newTagName = res.content.trim();
+            
+            if (!newTagName) {
+              uni.showToast({
+                title: '标签名称不能为空',
+                icon: 'none'
+              });
+              return;
+            }
+            
+            if (newTagName.length > 20) {
+              uni.showToast({
+                title: '标签名称不能超过20个字符',
+                icon: 'none'
+              });
+              return;
+            }
+            
+            try {
+              uni.showLoading({
+                title: '创建中...'
+              });
+              
+              const response = await createFocusTag({ tagName: newTagName }); // 只传递tagName，颜色由后端分配
+              
+              if (response.statusCode === 200 && response.data.code === 200) {
+                // 重新加载标签列表以获取新创建的标签
+                await this.loadTagsFromServer();
+                
+                // 选中新创建的标签
+                const newTag = this.tags.find(tag => tag.name === newTagName);
+                if (newTag) {
+                  // 取消之前选中的标签
+                  this.tags.forEach(tag => tag.selected = false);
+                  // 选中新标签
+                  newTag.selected = true;
+                }
+                
+                uni.showToast({
+                  title: '标签创建成功',
+                  icon: 'success'
+                });
+              } else {
+                console.error('创建标签失败:', response.data);
+                uni.showToast({
+                  title: response.data.message || '创建标签失败',
+                  icon: 'none'
+                });
+              }
+            } catch (error) {
+              console.error('创建标签失败:', error);
+              uni.showToast({
+                title: '网络请求失败',
+                icon: 'none'
+              });
+            } finally {
+              uni.hideLoading();
+            }
           }
-          
-          uni.showToast({
-            title: '标签创建成功',
-            icon: 'success'
-          });
-        } else {
-          console.error('创建标签失败:', response.data);
-          uni.showToast({
-            title: response.data.message || '创建标签失败',
-            icon: 'none'
-          });
         }
-      } catch (error) {
-        console.error('创建标签失败:', error);
-        uni.showToast({
-          title: '网络请求失败',
-          icon: 'none'
-        });
-      } finally {
-        uni.hideLoading();
-      }
+      });
     },
     
     // 切换编辑模式
@@ -1419,6 +1489,179 @@ export default {
     async feedChicken() {
       await this.loadSnacks();
       this.showFeedModal = true;
+    },
+    
+    // 治疗小鸡
+    async treatChicken() {
+      try {
+        uni.showLoading({
+          title: '加载中...'
+        });
+        
+        // 获取用户药品库存
+        const response = await getUserMedicineInventory();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          console.log('药品库存API响应:', response);
+          // 检查数据结构，可能在 list 字段中
+          const medicinesRawData = response.data.data;
+          console.log('原始药品数据:', medicinesRawData);
+          const inventoryList = Array.isArray(medicinesRawData.list) ? medicinesRawData.list : (Array.isArray(medicinesRawData) ? medicinesRawData : []);
+          console.log('库存列表:', inventoryList);
+          
+          if (inventoryList.length === 0) {
+            uni.showToast({
+              title: '您还没有药品',
+              icon: 'none'
+            });
+            return;
+          }
+          
+          // 获取完整的药品信息
+          const medicinesResponse = await getMedicineList();
+          console.log('完整药品列表API响应:', medicinesResponse);
+          
+          if (medicinesResponse.statusCode === 200 && medicinesResponse.data.code === 200) {
+            // 检查数据结构，可能在 list 字段中
+            const medicinesRawData = medicinesResponse.data.data;
+            const allMedicines = Array.isArray(medicinesRawData.list) ? medicinesRawData.list : (Array.isArray(medicinesRawData) ? medicinesRawData : []);
+            
+            // 将库存信息与药品详细信息合并
+            const medicinesWithDetails = inventoryList.map(inventory => {
+              const medicineDetail = allMedicines.find(med => med.medicineId === inventory.medicineId);
+              if (medicineDetail) {
+                // 合并库存信息和药品详情
+                return {
+                  ...medicineDetail,
+                  quantity: inventory.quantity
+                };
+              } else {
+                // 如果找不到药品详情，至少返回库存信息
+                return inventory;
+              }
+            }).filter(med => med.name); // 只保留有名称的药品
+            
+            console.log('合并后的药品列表:', medicinesWithDetails);
+            
+            if (medicinesWithDetails.length === 0) {
+              uni.showToast({
+                title: '您还没有可用的药品',
+                icon: 'none'
+              });
+              return;
+            }
+            
+            // 弹出药品选择框
+            this.availableMedicines = medicinesWithDetails;
+            console.log('设置到组件的药品列表:', this.availableMedicines);
+            this.showMedicineModal = true;
+          } else {
+            uni.showToast({
+              title: '获取药品详情失败',
+              icon: 'none'
+            });
+          }
+        } else {
+          uni.showToast({
+            title: '获取药品列表失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('治疗小鸡失败:', error);
+        uni.showToast({
+          title: '操作失败',
+          icon: 'none'
+        });
+      } finally {
+        uni.hideLoading();
+      }
+    },
+    
+    // 关闭药品选择弹窗
+    closeMedicineModal() {
+      this.showMedicineModal = false;
+    },
+    
+    // 药品图片加载错误
+    onMedicineImageError(e) {
+      console.log('药品图片加载失败:', e);
+    },
+    
+    // 药品图片加载完成
+    onMedicineImageLoad(e) {
+      console.log('药品图片加载完成:', e);
+    },
+    
+    // 使用药品
+    async useMedicine(medicine) {
+      console.log('准备使用药品:', medicine);
+      if (medicine.quantity <= 0) {
+        uni.showToast({
+          title: `药品不足，无法使用${medicine.name}`,
+          icon: 'none'
+        });
+        return;
+      }
+      
+      try {
+        uni.showLoading({
+          title: '使用中...'
+        });
+        
+        // 获取小鸡ID
+        let chickenId = this.chickenInfo.chickenId;
+        
+        // 如果还没有获取到小鸡ID，先获取一次
+        if (!chickenId) {
+          const response = await getChickenStats();
+          if (response.statusCode === 200 && response.data.code === 200) {
+            const data = response.data.data || {};
+            chickenId = data.chickenId || 1;
+          } else {
+            throw new Error('无法获取小鸡信息');
+          }
+        }
+        
+        // 构造使用药品数据
+        const useMedicineData = {
+          chickenId: chickenId,
+          medicineId: medicine.medicineId
+        };
+        
+        // 调用使用药品API
+        console.log('调用使用药品API，参数:', useMedicineData);
+        const response = await useMedicine(useMedicineData);
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          uni.showToast({
+            title: `${medicine.name}使用成功`,
+            icon: 'success'
+          });
+          
+          // 关闭弹窗并刷新数据
+          this.closeMedicineModal();
+          
+          // 重新加载小鸡信息
+          await this.loadChickenStats();
+          
+          // 重新加载药品库存
+          await this.treatChicken();
+        } else {
+          uni.showToast({
+            title: response.data.message || '使用药品失败',
+            icon: 'none'
+          });
+        }
+      } catch (error) {
+        console.error('使用药品失败:', error);
+        uni.showToast({
+          title: '使用药品失败',
+          icon: 'none'
+        });
+      } finally {
+        uni.hideLoading();
+      }
     },
     
     // 打开商店
@@ -1680,6 +1923,36 @@ export default {
   font-weight: bold;
 }
 
+/* 商店按钮样式 */
+.store-button-in-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: 2rpx solid #FF9800;
+  border-radius: 40rpx;
+  padding: 15rpx 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  margin-left: 20rpx; /* 添加左边距，与品牌名称分开 */
+}
+
+.store-button-in-header:active {
+  transform: scale(0.95);
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+.store-icon {
+  font-size: 32rpx;
+  margin-right: 10rpx;
+}
+
+.store-text {
+  font-size: 28rpx;
+  color: #FF9800;
+  font-weight: bold;
+}
+
 /* 喂食弹窗 */
 .feed-modal {
   position: fixed;
@@ -1844,6 +2117,131 @@ export default {
   color: #999999;
 }
 
+/* 药品选择弹窗 */
+.medicine-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1002;
+}
+
+.medicine-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.medicine-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+
+.medicine-header {
+  display: flex;
+  align-items: center;
+  height: 80rpx;
+  background-color: #ffffff;
+  border-bottom: 1rpx solid #e0e0e0;
+}
+
+.medicine-title {
+  flex: 1;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.medicines-list {
+  max-height: 600rpx;
+}
+
+.medicine-item {
+  display: flex;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.medicine-item:last-child {
+  border-bottom: none;
+}
+
+.medicine-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+  position: relative;
+  background-color: #f0f0f0;
+}
+
+.medicine-icon-image {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  display: block;
+}
+
+.medicine-effect {
+  position: absolute;
+  bottom: -10rpx;
+  right: -10rpx;
+  width: 36rpx;
+  height: 36rpx;
+  background-color: #4CAF50;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  color: #ffffff;
+}
+
+.medicine-info {
+  flex: 1;
+}
+
+.medicine-name {
+  font-size: 32rpx;
+  color: #333333;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.medicine-quantity {
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.use-medicine-button {
+  width: 120rpx;
+  height: 60rpx;
+  background-color: #FF9800;
+  color: #ffffff;
+  border-radius: 30rpx;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.use-medicine-button--disabled {
+  background-color: #e0e0e0;
+  color: #999999;
+}
+
 .hero-name {
   margin-top: 24rpx;
   font-size: 56rpx;
@@ -1875,12 +2273,18 @@ export default {
   align-items: center;
   justify-content: space-between;
   min-height: 64rpx;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.4s ease;
 }
 
 .focus-screen--entered .top-bar {
   opacity: 1;
+}
+
+.left-section {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
 }
 
 .brand-badge {
@@ -1899,16 +2303,7 @@ export default {
   transition: opacity 0.3s ease;
 }
 
-.top-icons {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
 
-.icon-button {
-  font-size: 32rpx;
-  color: #1a1a1a;
-}
 
 .focus-panel {
   width: 100%;

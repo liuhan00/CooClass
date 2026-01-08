@@ -19,7 +19,7 @@
 
     <!-- 商品列表 -->
     <scroll-view class="goods-list" scroll-y="true" @scrolltolower="loadMore">
-      <view class="goods-item" v-for="(item, index) in currentGoodsList" :key="item.foodId || index">
+      <view class="goods-item" v-for="(item, index) in currentGoodsList" :key="item.foodId || item.medicineId || index">
         <view class="goods-image">
           <image :src="item.icon" mode="aspectFill"></image>
         </view>
@@ -27,7 +27,7 @@
           <text class="goods-name">{{ item.name }}</text>
           <text class="goods-desc">{{ item.description }}</text>
           <view class="goods-stats">
-            <text class="exp-value">+{{ item.expValue }}经验值</text>
+            <text class="exp-value" v-if="item.expValue">+{{ item.expValue }}经验值</text>
             <text class="rarity" :class="`rarity--${item.rarity}`">{{ item.rarityText }}</text>
           </view>
         </view>
@@ -125,37 +125,59 @@ export default {
         ]);
 
         // 处理食物列表
+        console.log('食物API响应:', foodsResponse);
         if (foodsResponse.statusCode === 200 && foodsResponse.data.code === 200) {
-          this.allFoodsList = foodsResponse.data.data.map(item => {
+          // 检查食物数据结构，可能在 list 字段中
+          const foodsRawData = foodsResponse.data.data;
+          const foodsData = Array.isArray(foodsRawData.list) ? foodsRawData.list : (Array.isArray(foodsRawData) ? foodsRawData : []);
+          console.log('食物数据:', foodsData);
+          this.allFoodsList = foodsData.map(item => {
             return {
               ...item,
               type: 'food',
               typeName: '食物',
+              // 确保expValue存在
+              expValue: item.expValue,
+              // 如果没有描述，则提供默认值
+              description: item.description || '美味的食物',
               rarityText: this.getRarityText(item.rarity),
               category: item.category || 'food'
             };
           });
         } else {
           console.error('获取食物列表失败:', foodsResponse);
+          this.allFoodsList = [];
         }
 
         // 处理药品列表
+        console.log('药品API响应:', medicinesResponse);
         if (medicinesResponse.statusCode === 200 && medicinesResponse.data.code === 200) {
-          this.allMedicinesList = medicinesResponse.data.data.map(item => {
+          // 药品列表在 data.list 中
+          const medicinesData = Array.isArray(medicinesResponse.data.data.list) ? medicinesResponse.data.data.list : [];
+          console.log('药品数据:', medicinesData);
+          this.allMedicinesList = medicinesData.map(item => {
             return {
               ...item,
               type: 'medicine',
               typeName: '药品',
+              // 药品的特效值显示为效果值
+              expValue: item.effectValue,
+              // 如果没有描述，则使用效果类型
+              description: item.description || item.effectType,
               rarityText: this.getRarityText(item.rarity),
               category: item.category || 'medicine'
             };
           });
         } else {
           console.error('获取药品列表失败:', medicinesResponse);
+          this.allMedicinesList = [];
         }
 
         // 合并所有商品列表
         this.allGoodsList = [...this.allFoodsList, ...this.allMedicinesList];
+        console.log('合并后的所有商品列表:', this.allGoodsList);
+        console.log('食物列表长度:', this.allFoodsList.length);
+        console.log('药品列表长度:', this.allMedicinesList.length);
         this.filterGoodsList();
       } catch (error) {
         console.error('加载商品列表失败:', error);
@@ -182,23 +204,32 @@ export default {
 
     // 过滤商品列表
     filterGoodsList() {
+      console.log('当前分类索引:', this.activeCategory);
+      console.log('当前分类信息:', this.categories[this.activeCategory]);
+      
       if (this.activeCategory === 0) {
         // 全部商品
         this.currentGoodsList = [...this.allGoodsList];
+        console.log('显示全部商品，数量:', this.currentGoodsList.length);
       } else {
         const categoryId = this.categories[this.activeCategory].id;
+        console.log('分类ID:', categoryId);
         
         if (categoryId === 'food') {
           // 只显示食物
           this.currentGoodsList = [...this.allFoodsList];
+          console.log('显示食物商品，数量:', this.currentGoodsList.length);
         } else if (categoryId === 'medicine') {
           // 只显示药品
           this.currentGoodsList = [...this.allMedicinesList];
+          console.log('显示药品商品，数量:', this.currentGoodsList.length);
         } else {
           // 显示特定类别商品
           this.currentGoodsList = this.allGoodsList.filter(item => item.category === categoryId);
+          console.log('显示特定类别商品，数量:', this.currentGoodsList.length);
         }
       }
+      console.log('当前显示的商品列表:', this.currentGoodsList);
     },
 
     // 切换商品分类

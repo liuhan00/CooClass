@@ -232,9 +232,9 @@ export default {
           // 更新用户信息
           const userData = response.data.data;
           this.userInfo = {
-            username: userData.nickname || userData.username || this.userInfo.username,
+            username: userData.nickName || userData.username || this.userInfo.username,
             userId: userData.userId || userData.id || this.userInfo.userId,
-            avatar: userData.avatar || this.userInfo.avatar,
+            avatar: userData.avatarUrl || this.userInfo.avatar,
             bio: userData.bio || '',
             birthday: userData.birthday || '',
             coins: userData.coins || 0

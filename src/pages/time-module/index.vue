@@ -174,11 +174,13 @@
               <text class="section-subtitle">近期治疗</text>
               <view class="medicine-item" v-for="(medicine, index) in medicineStats.recentMedicines || []" :key="index">
                 <view class="medicine-icon">💊</view>
-                <view class="medicine-info">
-                  <text class="medicine-name">{{ medicine.medicineName }} ×{{ medicine.quantity || 1 }}</text>
-                  <text class="medicine-details">+{{ medicine.effectValue }}{{ getEffectTypeName(medicine.effectType) }}</text>
+                <view class="medicine-info-flex">
+                  <view class="medicine-info">
+                    <text class="medicine-name">{{ medicine.medicineName }} ×{{ medicine.quantity || 1 }}</text>
+                    <text class="medicine-details">+{{ medicine.effectValue }}{{ getEffectTypeName(medicine.effectType) }}</text>
+                  </view>
+                  <view class="medicine-time-small">{{ formatDateTime(medicine.createTime) }}</view>
                 </view>
-                <view class="medicine-time">{{ formatDateTime(medicine.createTime) }}</view>
               </view>
               
               <view v-if="!(medicineStats.recentMedicines && medicineStats.recentMedicines.length)" class="empty-medicines">
@@ -189,8 +191,10 @@
             <view class="medicine-stats">
               <text class="section-subtitle">药品统计</text>
               <view class="medicine-stat-item" v-for="(count, medicineName) in medicineStats.medicineStatistics || {}" :key="medicineName">
-                <text class="medicine-name">{{ medicineName }}</text>
-                <text class="medicine-count">{{ count }}</text>
+                <view class="medicine-name-and-count">
+                  <text class="medicine-name-small">{{ medicineName }}</text>
+                  <text class="medicine-count-right">{{ count }}</text>
+                </view>
               </view>
               
               <view v-if="!(medicineStats.medicineStatistics && Object.keys(medicineStats.medicineStatistics).length)" class="empty-medicine-stats">
@@ -2015,5 +2019,50 @@ export default {
 
 .confirm-button:active {
   background-color: #333333;
+}
+
+.medicine-name-and-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15rpx 0;
+  border-bottom: 1rpx solid #f8f8f8;
+}
+
+.medicine-name-label {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-right: 10rpx;
+}
+
+.medicine-name-small {
+  font-size: 24rpx;
+  color: #666666;
+  flex: 1;
+  margin-right: 10rpx;
+}
+
+.medicine-count-right {
+  font-size: 28rpx;
+  color: #666666;
+  font-weight: bold;
+  text-align: right;
+  min-width: 60rpx;
+}
+
+.medicine-info-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+}
+
+.medicine-time-small {
+  font-size: 24rpx;
+  color: #999999;
+  text-align: right;
+  margin-left: 20rpx;
+  white-space: nowrap;
 }
 </style>

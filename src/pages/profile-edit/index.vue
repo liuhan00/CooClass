@@ -41,7 +41,7 @@
         <view class="input-label">生日</view>
         <picker class="picker-field" mode="date" :value="userInfo.birthday" @change="onBirthdayChange">
           <view class="picker-content">
-            <text v-if="userInfo.birthday">{{ userInfo.birthday }}</text>
+            <text v-if="userInfo.birthday">{{ formatDate(userInfo.birthday) }}</text>
             <text v-else class="placeholder-text">请选择生日</text>
             <text class="picker-arrow">›</text>
           </view>
@@ -110,8 +110,8 @@ export default {
           // 更新用户信息
           const userData = response.data.data;
           this.userInfo = {
-            avatar: userData.avatar || this.userInfo.avatar,
-            nickname: userData.nickname || this.userInfo.nickname,
+            avatar: userData.avatarUrl || this.userInfo.avatar,
+            nickname: userData.nickName || this.userInfo.nickname,
             bio: userData.bio || this.userInfo.bio,
             birthday: userData.birthday || this.userInfo.birthday
           };
@@ -256,6 +256,31 @@ export default {
       })
     },
     
+    // 日期格式化
+    formatDate(dateString) {
+      if (!dateString) return '';
+      
+      try {
+        // 如果是ISO格式的日期字符串，转换为Date对象
+        const date = new Date(dateString);
+        
+        // 检查日期是否有效
+        if (isNaN(date.getTime())) {
+          return dateString; // 如果无法解析，返回原字符串
+        }
+        
+        // 格式化为 YYYY-MM-DD 格式
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
+      } catch (error) {
+        console.error('日期格式化失败:', error);
+        return dateString; // 出错时返回原字符串
+      }
+    },
+    
     // 生日选择器变化
     onBirthdayChange(e) {
       this.userInfo.birthday = e.detail.value
@@ -276,8 +301,16 @@ export default {
       })
       
       try {
+        // 准备发送到后端的数据，确保字段名与后端期望的一致
+        const requestData = {
+          nickName: this.userInfo.nickname,
+          bio: this.userInfo.bio,
+          birthday: this.userInfo.birthday,
+          avatarUrl: this.userInfo.avatar
+        };
+        
         // 调用API保存用户资料
-        const response = await request.updateUserInfo(this.userInfo);
+        const response = await request.updateUserInfo(requestData);
         
         if (response.statusCode === 200 && response.data.code === 200) {
           uni.showToast({

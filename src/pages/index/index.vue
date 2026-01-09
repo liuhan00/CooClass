@@ -1664,6 +1664,41 @@ export default {
       }
     },
     
+    // 加载小鸡信息
+    async loadChickenStats() {
+      try {
+        const response = await getChickenStats();
+        
+        if (response.statusCode === 200 && response.data.code === 200) {
+          const data = response.data.data || {};
+          // 更新本地显示的小鸡信息
+          this.chickenInfo.chickenId = data.chickenId || 1;
+          this.chickenInfo.growthStage = data.growthStage || '未知';
+          this.chickenInfo.breed = data.breed || '普通鸡';
+          this.chickenInfo.name = data.name || '无名小鸡';
+          this.chickenInfo.level = data.level || 0;
+          // 计算当前等级的经验值（每100经验值为一个等级）
+          // 如果知道升级所需经验，使用该值作为当前等级的总经验
+          if (data.expToNextLevel) {
+            this.chickenInfo.expCurrent = data.exp % 100;
+            this.chickenInfo.expTotal = 100; // 每个等级固定100经验值
+          } else {
+            // 如果不知道升级所需经验，使用当前经验值，但限制在0-100范围内
+            this.chickenInfo.expCurrent = data.exp % 100;
+            this.chickenInfo.expTotal = 100; // 每个等级固定100经验值
+          }
+          this.chickenInfo.exp = data.exp || 0;
+          this.chickenInfo.happiness = data.happiness || 0;
+          this.chickenInfo.health = data.health || 0;
+          this.chickenInfo.hunger = data.hunger || 0;
+        } else {
+          console.error('获取小鸡统计数据失败:', response);
+        }
+      } catch (error) {
+        console.error('获取小鸡统计数据时出错:', error);
+      }
+    },
+    
     // 打开商店
     openShop() {
       uni.navigateTo({
@@ -3252,9 +3287,11 @@ export default {
 
 .tags-container {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 20rpx;
   position: relative;
+  max-height: 400rpx;
+  overflow-y: auto;
 }
 
 .tags-container::before {

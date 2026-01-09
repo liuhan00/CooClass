@@ -1,5 +1,5 @@
 // 网络请求工具
-const BASE_URL = 'http://192.168.1.124:8081'; // 后端IP地址和端口
+const BASE_URL = 'http://192.168.1.133:8081'; // 后端IP地址和端口
 
 // 通用请求方法
 function request(options) {
@@ -206,9 +206,6 @@ export default {
   updateUserInfo,
   deleteAccount
 };
-
-// 命名导出通用请求方法
-export { getUserInfo };
 
 // 命名导出专注功能相关API
 export { startFocus, endFocus, cancelFocus, continueFocus, getFocusList };
@@ -462,10 +459,10 @@ function getMissionStats() {
 }
 
 // 命名导出通用请求方法
-export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, getMedicineList, getUserMedicineInventory, purchaseMedicine, feedChicken, useMedicine, levelUpChicken, getFocusStats, getTodayStats, getChickenFeedStats, getMedicineHistory, getChickenInteractionHistory, detectAndReward, getRewardDetails, getUserBallCount, getTodayMissions, claimMissionReward, getMissionStats };
+export { request, wechatLogin, getChickenStats, interactWithChicken, getFoodsList, getUserFoodInventory, purchaseFood, getMedicineList, getUserMedicineInventory, purchaseMedicine, feedChicken, useMedicine, levelUpChicken, getFocusStats, getTodayStats, getChickenFeedStats, getMedicineHistory, getChickenInteractionHistory, detectAndReward, getRewardDetails, getUserBallCount, getTodayMissions, claimMissionReward, getMissionStats, updateUserInfo };
 
 // 命名导出用户信息相关API
-export { deleteAccount };
+export { deleteAccount, getUserInfo };
 
 // 上传头像
 function uploadAvatar(filePath) {
